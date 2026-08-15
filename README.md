@@ -4,7 +4,7 @@ Transliteration component for React with support for over 30 languages. Uses API
 
 Fork of [burhanuday/react-transliterate](https://github.com/burhanuday/react-transliterate), with configurable trigger keys, punctuation handling and sticky escape.
 
-[![NPM](https://img.shields.io/npm/v/@sks-srujanee/react-transliterate.svg)](https://www.npmjs.com/package/@sks-srujanee/react-transliterate)
+[![NPM](https://img.shields.io/npm/v/@sarthak1407/react-transliterate.svg)](https://www.npmjs.com/package/@sarthak1407/react-transliterate)
 
 <p align="center">
 <img src="./assets/hi.gif"></img>
@@ -17,11 +17,11 @@ Fork of [burhanuday/react-transliterate](https://github.com/burhanuday/react-tra
 ## Install
 
 ```bash
-npm install --save @sks-srujanee/react-transliterate
+npm install --save @sarthak1407/react-transliterate
 
 OR
 
-yarn add @sks-srujanee/react-transliterate
+yarn add @sarthak1407/react-transliterate
 ```
 
 ## Usage
@@ -31,8 +31,8 @@ yarn add @sks-srujanee/react-transliterate
 ```jsx
 import React, { useState } from "react";
 
-import { ReactTransliterate } from "@sks-srujanee/react-transliterate";
-import "@sks-srujanee/react-transliterate/dist/index.css";
+import { ReactTransliterate } from "@sarthak1407/react-transliterate";
+import "@sarthak1407/react-transliterate/dist/index.css";
 
 const App = () => {
   const [text, setText] = useState("");
@@ -56,8 +56,8 @@ export default App;
 ```jsx
 import React, { useState } from "react";
 
-import { ReactTransliterate } from "@sks-srujanee/react-transliterate";
-import "@sks-srujanee/react-transliterate/dist/index.css";
+import { ReactTransliterate } from "@sarthak1407/react-transliterate";
+import "@sarthak1407/react-transliterate/dist/index.css";
 
 const App = () => {
   const [text, setText] = useState("");
@@ -82,8 +82,8 @@ export default App;
 ```tsx
 import React, { useState } from "react";
 
-import { ReactTransliterate, Language } from "@sks-srujanee/react-transliterate";
-import "@sks-srujanee/react-transliterate/dist/index.css";
+import { ReactTransliterate, Language } from "@sarthak1407/react-transliterate";
+import "@sarthak1407/react-transliterate/dist/index.css";
 
 const App = () => {
   const [text, setText] = useState("");
@@ -109,8 +109,8 @@ export default App;
 ```tsx
 import React, { useState } from "react";
 
-import { ReactTransliterate, Language } from "@sks-srujanee/react-transliterate";
-import "@sks-srujanee/react-transliterate/dist/index.css";
+import { ReactTransliterate, Language } from "@sarthak1407/react-transliterate";
+import "@sarthak1407/react-transliterate/dist/index.css";
 
 import Input from "@material-ui/core/Input";
 
@@ -165,8 +165,8 @@ import {
   ReactTransliterate,
   TriggerKeys,
   PUNCTUATION_TRIGGER_KEYS,
-} from "@sks-srujanee/react-transliterate";
-import "@sks-srujanee/react-transliterate/dist/index.css";
+} from "@sarthak1407/react-transliterate";
+import "@sarthak1407/react-transliterate/dist/index.css";
 
 const App = () => {
   const [text, setText] = useState("");
@@ -224,7 +224,7 @@ keystroke instead.
 ## Get transliteration suggestions
 
 ```jsx
-import { getTransliterateSuggestions } from "@sks-srujanee/react-transliterate";
+import { getTransliterateSuggestions } from "@sarthak1407/react-transliterate";
 
 const data = await getTransliterateSuggestions(
   word, // word to fetch suggestions for

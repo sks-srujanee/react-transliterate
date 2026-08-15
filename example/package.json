@@ -21,7 +21,7 @@
     "react": "link:../node_modules/react",
     "react-dom": "link:../node_modules/react-dom",
     "react-scripts": "link:../node_modules/react-scripts",
-    "@sks-srujanee/react-transliterate": "link:..",
+    "@sarthak1407/react-transliterate": "link:..",
     "typescript": "link:../node_modules/typescript"
   },
   "devDependencies": {
