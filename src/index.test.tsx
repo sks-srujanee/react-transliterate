@@ -202,38 +202,52 @@ describe("ReactTransliterate", () => {
     await waitFor(() => screen.getByText("hi"));
   });
 
-  it("does not insert on blur when a parent escape handler blurs the input", async () => {
-    mockSuggestions(["hi", "hey", "hello"]);
-    const mockOnChangeText = vi.fn();
-    render(<ControlledTransliterate onChangeText={mockOnChangeText} />);
+  // apps commonly close editors on escape from a window listener that blurs
+  // whatever is focused. A capture phase listener runs before the keydown
+  // reaches this component, so the suggestions are still open at blur time
+  describe.each([
+    ["bubble", false],
+    ["capture", true],
+  ])(
+    "when a parent escape handler blurs the input in the %s phase",
+    (_phase, useCapture) => {
+      it("does not insert the suggestion", async () => {
+        mockSuggestions(["hi", "hey", "hello"]);
+        const mockOnChangeText = vi.fn();
+        render(<ControlledTransliterate onChangeText={mockOnChangeText} />);
 
-    const input = screen.getByTestId("rt-input-component") as HTMLInputElement;
+        const input = screen.getByTestId(
+          "rt-input-component",
+        ) as HTMLInputElement;
 
-    // apps commonly close editors on escape from a window listener, which
-    // runs in the same event dispatch as this component's own handler
-    const blurOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        (document.activeElement as HTMLElement)?.blur();
-      }
-    };
-    window.addEventListener("keydown", blurOnEscape);
+        const blurOnEscape = (event: KeyboardEvent) => {
+          if (event.key === "Escape") {
+            (document.activeElement as HTMLElement)?.blur();
+          }
+        };
+        window.addEventListener("keydown", blurOnEscape, useCapture);
 
-    try {
-      input.focus();
-      fireEvent.change(input, { target: { value: "there" } });
-      await waitFor(() => screen.getByText("hi"));
+        try {
+          input.focus();
+          fireEvent.change(input, { target: { value: "there" } });
+          await waitFor(() => screen.getByText("hi"));
 
-      fireEvent.keyDown(input, { key: "Escape" });
+          fireEvent.keyDown(input, { key: "Escape" });
 
-      // the suggestion must not be inserted by the blur that escape caused
-      expect(mockOnChangeText).toHaveBeenLastCalledWith("there");
-      expect(
-        screen.queryByTestId("rt-suggestions-list"),
-      ).not.toBeInTheDocument();
-    } finally {
-      window.removeEventListener("keydown", blurOnEscape);
-    }
-  });
+          // the insertion is deferred to the end of the dispatch, so give the
+          // timer a chance to run before asserting that it did nothing
+          await new Promise((resolve) => setTimeout(resolve, 10));
+
+          expect(mockOnChangeText).toHaveBeenLastCalledWith("there");
+          expect(
+            screen.queryByTestId("rt-suggestions-list"),
+          ).not.toBeInTheDocument();
+        } finally {
+          window.removeEventListener("keydown", blurOnEscape, useCapture);
+        }
+      });
+    },
+  );
 
   it("renders suggestions list", async () => {
     mockSuggestions(["hi", "hey", "hello"]);

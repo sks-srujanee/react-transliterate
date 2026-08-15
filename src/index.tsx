@@ -91,6 +91,18 @@ export const ReactTransliterate = ({
     setSelection(next);
   };
 
+  // pending insertion scheduled by `blur`, see `handleBlur`
+  const blurInsertTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  const cancelBlurInsert = () => {
+    if (blurInsertTimeoutRef.current !== null) {
+      clearTimeout(blurInsertTimeoutRef.current);
+      blurInsertTimeoutRef.current = null;
+    }
+  };
+
   const applyMatch = (start: number, end: number) => {
     matchStartRef.current = start;
     matchEndRef.current = end;
@@ -295,6 +307,7 @@ export const ReactTransliterate = ({
             if (dismissSuggestionsOnEscape) {
               dismissedWordStartRef.current = matchStartRef.current;
             }
+            cancelBlurInsert();
             reset();
             break;
           case KEY_UP:
@@ -326,11 +339,35 @@ export const ReactTransliterate = ({
       // `blur()` in the same tick as the reset that this component queued
       const currentSelection = selectionRef.current;
 
+      cancelBlurInsert();
+
       if (
         insertCurrentSelectionOnBlur &&
         optionsRef.current[currentSelection]
       ) {
-        handleSelection(currentSelection);
+        /**
+         * An app that closes editors on escape often blurs the input from a
+         * capture phase listener, which runs before the keydown reaches this
+         * component. The suggestions are still open at that point, so
+         * inserting right here would commit a word that escape is about to
+         * dismiss. Waiting for the event dispatch to finish lets escape run
+         * first, and it clears the options this checks again
+         */
+        blurInsertTimeoutRef.current = setTimeout(() => {
+          blurInsertTimeoutRef.current = null;
+
+          // escape, or anything else, closed the suggestions after the blur
+          if (!optionsRef.current[currentSelection]) {
+            return;
+          }
+
+          // the input took focus back, so the blur no longer stands
+          if (document.activeElement === inputRef.current) {
+            return;
+          }
+
+          handleSelection(currentSelection);
+        }, 0);
       } else {
         reset();
       }
@@ -354,6 +391,7 @@ export const ReactTransliterate = ({
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      cancelBlurInsert();
     };
   }, []);
 
