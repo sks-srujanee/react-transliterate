@@ -4,13 +4,33 @@ import React, { useState } from "react";
 import { languages } from "./languages";
 
 // import component
-import { ReactTransliterate, Language } from "@sarthak1407/react-transliterate";
+import {
+  ReactTransliterate,
+  Language,
+  createAnalyzeSource,
+} from "@sarthak1407/react-transliterate";
 
 // Material Ui input component
 import Input from "@mui/material/Input";
 
+// spelling and codemix suggestions for text that is already in the script
+const analyzeSource = createAnalyzeSource({
+  url: "https://labs-prod.srujanee.in/v1/analyze",
+});
+
+const darkTheme = {
+  background: "#16161a",
+  color: "#e8e8ef",
+  activeBackground: "#f9c80e",
+  activeColor: "#16161a",
+  border: "1px solid #2a2a33",
+  borderRadius: "8px",
+  boxShadow: "0 12px 32px rgba(0, 0, 0, 0.45)",
+};
+
 const App = () => {
   const [text, setText] = useState("");
+  const [analyzed, setAnalyzed] = useState("");
 
   const [lang, setLang] = useState<Language>("hi");
 
@@ -55,6 +75,22 @@ const App = () => {
         lang={lang}
         placeholder="Start typing here..."
         id="react-transliterate-textarea"
+      />
+
+      <div className="spacer" />
+
+      <label htmlFor="react-transliterate-analyze">
+        Custom endpoint with a dark theme
+      </label>
+      <ReactTransliterate
+        value={analyzed}
+        onChangeText={setAnalyzed}
+        lang={lang}
+        fetchSuggestions={analyzeSource}
+        onSuggestionsError={(error) => console.error(error)}
+        theme={darkTheme}
+        placeholder="बड"
+        id="react-transliterate-analyze"
       />
 
       <div className="spacer" />

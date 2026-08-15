@@ -249,6 +249,98 @@ describe("ReactTransliterate", () => {
     },
   );
 
+  it("takes suggestions from a custom source", async () => {
+    const fetchSuggestions = vi.fn(async () => ["बड़ा", "बड़े"]);
+    const mockOnChangeText = vi.fn();
+
+    render(
+      <ControlledTransliterate
+        lang="hi"
+        fetchSuggestions={fetchSuggestions}
+        onChangeText={mockOnChangeText}
+      />,
+    );
+
+    const input = screen.getByTestId("rt-input-component");
+    fireEvent.change(input, { target: { value: "बड" } });
+
+    await waitFor(() => screen.getByText("बड़ा"));
+
+    // the typed word is still appended as the last suggestion
+    expect(screen.getByText("बड")).toBeInTheDocument();
+    expect(fetchSuggestions).toHaveBeenCalledWith(
+      "बड",
+      expect.objectContaining({ lang: "hi", value: "बड", matchStart: 0 }),
+    );
+  });
+
+  it("reports a failing source and closes the box", async () => {
+    const onSuggestionsError = vi.fn();
+    const fetchSuggestions = vi.fn(async () => {
+      throw new Error("boom");
+    });
+
+    render(
+      <ControlledTransliterate
+        fetchSuggestions={fetchSuggestions}
+        onSuggestionsError={onSuggestionsError}
+        onChangeText={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId("rt-input-component"), {
+      target: { value: "there" },
+    });
+
+    await waitFor(() =>
+      expect(onSuggestionsError).toHaveBeenCalledWith(expect.any(Error)),
+    );
+    expect(screen.queryByTestId("rt-suggestions-list")).not.toBeInTheDocument();
+  });
+
+  it("does not query below minWordLength", async () => {
+    const fetchSuggestions = vi.fn(async () => ["बड़ा"]);
+
+    render(
+      <ControlledTransliterate
+        minWordLength={3}
+        fetchSuggestions={fetchSuggestions}
+        onChangeText={vi.fn()}
+      />,
+    );
+
+    const input = screen.getByTestId("rt-input-component");
+    fireEvent.change(input, { target: { value: "ba" } });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(fetchSuggestions).not.toHaveBeenCalled();
+
+    fireEvent.change(input, { target: { value: "bad" } });
+    await waitFor(() => expect(fetchSuggestions).toHaveBeenCalledTimes(1));
+  });
+
+  it("writes theme tokens as css custom properties", async () => {
+    mockSuggestions(["hi", "hey"]);
+
+    render(
+      <ControlledTransliterate
+        theme={{ background: "#101014", activeBackground: "#f9c80e" }}
+        suggestionsClassName="my-list"
+        onChangeText={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId("rt-input-component"), {
+      target: { value: "there" },
+    });
+
+    const list = await screen.findByTestId("rt-suggestions-list");
+    expect(list.style.getPropertyValue("--rt-background")).toBe("#101014");
+    expect(list.style.getPropertyValue("--rt-active-background")).toBe(
+      "#f9c80e",
+    );
+    expect(list).toHaveClass("my-list");
+  });
+
   it("renders suggestions list", async () => {
     mockSuggestions(["hi", "hey", "hello"]);
     const mockOnChangeText = vi.fn();

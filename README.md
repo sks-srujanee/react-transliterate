@@ -220,6 +220,119 @@ typed. Suggestions stay hidden for that word until a new word is started. Set
 `dismissSuggestionsOnEscape={false}` to have the box reopen on the next
 keystroke instead.
 
+### Theming
+
+Every visual value is a css custom property, so a theme is a plain object of
+tokens. Anything left out keeps the default.
+
+```jsx
+<ReactTransliterate
+  value={text}
+  onChangeText={setText}
+  lang="hi"
+  theme={{
+    background: "#16161a",
+    color: "#e8e8ef",
+    activeBackground: "#f9c80e",
+    activeColor: "#16161a",
+    border: "1px solid #2a2a33",
+    borderRadius: "8px",
+    boxShadow: "0 12px 32px rgba(0, 0, 0, 0.45)",
+    fontSize: "15px",
+    maxHeight: "240px",
+  }}
+/>
+```
+
+| Token                                    | Custom property                               | Default                       |
+| ---------------------------------------- | --------------------------------------------- | ----------------------------- |
+| `background`                             | `--rt-background`                             | `#fff`                        |
+| `color`                                  | `--rt-color`                                  | `inherit`                     |
+| `activeBackground`                       | `--rt-active-background`                      | `#65c3d7`                     |
+| `activeColor`                            | `--rt-active-color`                           | `#fff`                        |
+| `border`                                 | `--rt-border`                                 | `1px solid rgba(0,0,0,.15)`   |
+| `borderRadius`                           | `--rt-border-radius`                          | `0`                           |
+| `boxShadow`                              | `--rt-box-shadow`                             | `0 6px 12px rgba(0,0,0,.175)` |
+| `fontFamily` / `fontSize`                | `--rt-font-family` / `--rt-font-size`         | `inherit` / `14px`            |
+| `itemPaddingBlock` / `itemPaddingInline` | `--rt-item-padding-*`                         | `10px`                        |
+| `minWidth` / `maxWidth` / `maxHeight`    | `--rt-min-width` / `-max-width`/`-max-height` | `100px` / `320px` / `none`    |
+| `zIndex`                                 | `--rt-z-index`                                | `20000`                       |
+
+Because they are custom properties, a stylesheet works just as well, which is
+the way to theme by media query:
+
+```css
+@media (prefers-color-scheme: dark) {
+  .my-suggestions {
+    --rt-background: #16161a;
+    --rt-active-background: #f9c80e;
+  }
+}
+```
+
+Pass `suggestionsClassName`, `itemClassName` and `activeItemClassName` to hang
+your own classes on the list and its items.
+
+### Custom suggestion source
+
+`fetchSuggestions` replaces Google Input Tools with any endpoint. It receives
+the word being typed plus the language, the full input value, the bounds of the
+word and an `AbortSignal` that fires when the word changes.
+
+```jsx
+<ReactTransliterate
+  value={text}
+  onChangeText={setText}
+  lang="hi"
+  fetchSuggestions={async (word, { lang, signal }) => {
+    const res = await fetch("https://example.com/suggest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ word, lang }),
+      signal,
+    });
+    const data = await res.json();
+    return data.suggestions;
+  }}
+  onSuggestionsError={(error) => console.error(error)}
+  debounceMs={150}
+  minWordLength={2}
+/>
+```
+
+`createAnalyzeSource` is a ready made source for an `/analyze` endpoint that
+takes `{ sentence, language }` and answers with per word `spell_suggestions`
+and `codemix_options`:
+
+```jsx
+import {
+  ReactTransliterate,
+  createAnalyzeSource,
+} from "@sarthak1407/react-transliterate";
+
+const analyze = createAnalyzeSource({
+  url: "https://labs-prod.srujanee.in/v1/analyze",
+  // "spell" for corrections, "codemix" for the latin spellings, or "both"
+  use: "both",
+  // drop spelling suggestions the endpoint is unsure about
+  minConfidence: 0.6,
+  // send the whole input for context instead of the word alone
+  sendFullSentence: false,
+  headers: { Authorization: `Bearer ${token}` },
+});
+
+<ReactTransliterate
+  value={text}
+  onChangeText={setText}
+  lang="hi"
+  fetchSuggestions={analyze}
+/>;
+```
+
+Spelling suggestions come first, ordered by confidence, followed by the codemix
+options, with the typed word removed since the component appends it itself when
+`showCurrentWordAsLastSuggestion` is on.
+
 ## Get transliteration suggestions
 
 ```jsx

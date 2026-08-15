@@ -25,6 +25,10 @@ import {
 import { TriggerKey, TriggerKeyConfig } from "./types/TriggerKey";
 import { getTransliterateSuggestions } from "./util/suggestions-util";
 import { injectStyles } from "./util/style-util";
+import { toThemeStyles } from "./util/theme-util";
+import { ReactTransliterateTheme } from "./types/Theme";
+import { FetchSuggestions } from "./types/SuggestionSource";
+import { createAnalyzeSource } from "./sources/analyze-source";
 
 injectStyles(css);
 
@@ -57,6 +61,14 @@ export const ReactTransliterate = ({
   insertCurrentSelectionOnBlur = true,
   showCurrentWordAsLastSuggestion = true,
   enabled = true,
+  theme,
+  suggestionsClassName = "",
+  itemClassName = "",
+  activeItemClassName = "",
+  fetchSuggestions,
+  debounceMs = 0,
+  minWordLength = 1,
+  onSuggestionsError,
   ...rest
 }: ReactTransliterateProps): React.JSX.Element => {
   const [options, setOptions] = useState<string[]>([]);
@@ -83,6 +95,8 @@ export const ReactTransliterate = ({
    * refs alone
    */
   const optionsRef = useRef<string[]>([]);
+  // latest value, which during `change` is ahead of the `value` prop
+  const valueRef = useRef(value);
   const selectionRef = useRef(0);
   const matchStartRef = useRef(-1);
   const matchEndRef = useRef(-1);
@@ -95,6 +109,19 @@ export const ReactTransliterate = ({
   const applySelection = (next: number) => {
     selectionRef.current = next;
     setSelection(next);
+  };
+
+  // in flight suggestion request, aborted when the word changes
+  const requestControllerRef = useRef<AbortController | null>(null);
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelPendingRequest = () => {
+    if (debounceTimeoutRef.current !== null) {
+      clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = null;
+    }
+    requestControllerRef.current?.abort();
+    requestControllerRef.current = null;
   };
 
   // pending insertion scheduled by `blur`, see `handleBlur`
@@ -132,6 +159,13 @@ export const ReactTransliterate = ({
 
     return map;
   }, [triggerKeys]);
+
+  const themeStyles = useMemo(
+    () => toThemeStyles(theme),
+    // the object is usually written inline, so compare the values
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(theme ?? {})],
+  );
 
   const shouldRenderSuggestions = useMemo(
     () =>
@@ -200,27 +234,74 @@ export const ReactTransliterate = ({
     return inputRef.current?.focus();
   };
 
-  const renderSuggestions = async (lastWord: string) => {
+  const requestSuggestions = (lastWord: string) => {
     if (!shouldRenderSuggestions) {
       return;
     }
-    // fetch suggestion from api
-    // const url = `https://www.google.com/inputtools/request?ime=transliteration_en_${lang}&num=5&cp=0&cs=0&ie=utf-8&oe=utf-8&app=jsapi&text=${lastWord}`;
+
+    cancelPendingRequest();
+
+    if (lastWord.length < minWordLength) {
+      reset();
+      return;
+    }
 
     const numOptions = showCurrentWordAsLastSuggestion
       ? maxOptions - 1
       : maxOptions;
 
-    const data = await getTransliterateSuggestions(lastWord, {
-      numOptions,
-      showCurrentWordAsLastSuggestion,
-      lang,
-    });
-    applyOptions(data);
+    const run = async () => {
+      const controller = new AbortController();
+      requestControllerRef.current = controller;
+
+      try {
+        const data = fetchSuggestions
+          ? await fetchSuggestions(lastWord, {
+              lang,
+              numOptions,
+              showCurrentWordAsLastSuggestion,
+              value: valueRef.current,
+              matchStart: matchStartRef.current,
+              matchEnd: matchEndRef.current,
+              signal: controller.signal,
+            })
+          : await getTransliterateSuggestions(lastWord, {
+              numOptions,
+              showCurrentWordAsLastSuggestion,
+              lang,
+            });
+
+        // a newer keystroke already replaced this request
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        applyOptions(
+          fetchSuggestions && showCurrentWordAsLastSuggestion
+            ? [...data, lastWord]
+            : data,
+        );
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        onSuggestionsError?.(error);
+        reset();
+      }
+    };
+
+    if (debounceMs > 0) {
+      debounceTimeoutRef.current = setTimeout(run, debounceMs);
+      return;
+    }
+
+    run();
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.currentTarget.value;
+    valueRef.current = value;
 
     // bubble up event to the parent component
     onChange?.(e);
@@ -266,7 +347,7 @@ export const ReactTransliterate = ({
     const currentWord = value.slice(indexOfLastSpace + 1, caret);
     if (currentWord && enabled && !isDismissed) {
       // make an api call to fetch suggestions
-      renderSuggestions(currentWord);
+      requestSuggestions(currentWord);
 
       const rect = input.getBoundingClientRect();
 
@@ -314,6 +395,7 @@ export const ReactTransliterate = ({
               dismissedWordStartRef.current = matchStartRef.current;
             }
             cancelBlurInsert();
+            cancelPendingRequest();
             reset();
             break;
           case KEY_UP:
@@ -390,6 +472,10 @@ export const ReactTransliterate = ({
   };
 
   useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
+
+  useEffect(() => {
     window.addEventListener("resize", handleResize);
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -398,6 +484,7 @@ export const ReactTransliterate = ({
     return () => {
       window.removeEventListener("resize", handleResize);
       cancelBlurInsert();
+      cancelPendingRequest();
     };
   }, []);
 
@@ -426,9 +513,11 @@ export const ReactTransliterate = ({
             left: `${left + offsetX}px`,
             top: `${top + offsetY}px`,
             position: "absolute",
-            width: "auto",
+            ...themeStyles,
           }}
-          className={classes.ReactTransliterate}
+          className={[classes.ReactTransliterate, suggestionsClassName]
+            .filter(Boolean)
+            .join(" ")}
           data-testid="rt-suggestions-list"
         >
           {/*
@@ -437,7 +526,13 @@ export const ReactTransliterate = ({
            */}
           {Array.from(new Set(options)).map((item, index) => (
             <li
-              className={index === selection ? classes.Active : undefined}
+              className={[
+                itemClassName,
+                index === selection ? classes.Active : "",
+                index === selection ? activeItemClassName : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
               style={index === selection ? activeItemStyles || {} : {}}
               onMouseEnter={() => {
                 applySelection(index);
@@ -454,11 +549,19 @@ export const ReactTransliterate = ({
   );
 };
 
-export type { ReactTransliterateProps, Language, TriggerKey, TriggerKeyConfig };
+export type {
+  ReactTransliterateProps,
+  Language,
+  TriggerKey,
+  TriggerKeyConfig,
+  ReactTransliterateTheme,
+  FetchSuggestions,
+};
 export {
   TriggerKeys,
   PUNCTUATION_TRIGGER_KEYS,
   DEFAULT_TRIGGER_KEYS,
   getFullStopCharacter,
   getTransliterateSuggestions,
+  createAnalyzeSource,
 };
