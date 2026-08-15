@@ -1,4 +1,5 @@
 import { Language } from "../types/Language";
+import { TriggerKey } from "../types/TriggerKey";
 
 export interface ReactTransliterateProps
   extends React.HTMLProps<HTMLInputElement | HTMLTextAreaElement> {
@@ -71,9 +72,29 @@ export interface ReactTransliterateProps
   hideSuggestionBoxBreakpoint?: number;
 
   /**
-   * Keys which when pressed, input the current selection to the textbox
+   * Keys which when pressed, input the current selection to the textbox.
+   *
+   * Each entry is either the key itself (`" "`, `"Enter"`, `"."`) or an
+   * object of the shape `{ key, insertText }` where `insertText` is the
+   * text added after the suggestion. `insertText` can also be a function
+   * receiving the current context, which is how the full stop key inserts
+   * the purnaviram for Indic languages
    */
-  triggerKeys?: string[];
+  triggerKeys?: TriggerKey[];
+
+  /**
+   * Character inserted by the full stop trigger key. Defaults to the
+   * sentence terminator of `lang`, eg. `।` for `hi` and `.` for `en`
+   */
+  fullStopCharacter?: string;
+
+  /**
+   * When `Escape` is pressed, close the suggestion box and keep the typed
+   * english word. Suggestions stay hidden for that word until a new word
+   * is started
+   * @type boolean
+   */
+  dismissSuggestionsOnEscape?: boolean;
 
   /**
    * Should the current selection be inserted when `blur` event occurs

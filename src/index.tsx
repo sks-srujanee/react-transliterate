@@ -1,11 +1,25 @@
 import * as React from "react";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { setCaretPosition, getInputSelection, isTouchEnabled } from "./util";
+import {
+  setCaretPosition,
+  getInputSelection,
+  isTouchEnabled,
+  isLatinText,
+} from "./util";
 import getCaretCoordinates from "textarea-caret";
 import classes from "./styles.module.css";
 import { ReactTransliterateProps } from "./interfaces/Props";
 import { Language } from "./types/Language";
-import { TriggerKeys } from "./constants/TriggerKeys";
+import { PUNCTUATION_TRIGGER_KEYS, TriggerKeys } from "./constants/TriggerKeys";
+import {
+  DEFAULT_INSERT_TEXT,
+  DEFAULT_TRIGGER_KEYS,
+} from "./constants/DefaultTriggerKeys";
+import {
+  DEFAULT_FULL_STOP_CHARACTER,
+  getFullStopCharacter,
+} from "./constants/FullStopCharacters";
+import { TriggerKey, TriggerKeyConfig } from "./types/TriggerKey";
 import { getTransliterateSuggestions } from "./util/suggestions-util";
 
 const KEY_UP = "ArrowUp";
@@ -31,12 +45,9 @@ export const ReactTransliterate = ({
   maxOptions = 5,
   hideSuggestionBoxOnMobileDevices = false,
   hideSuggestionBoxBreakpoint = 450,
-  triggerKeys = [
-    TriggerKeys.KEY_SPACE,
-    TriggerKeys.KEY_ENTER,
-    TriggerKeys.KEY_RETURN,
-    TriggerKeys.KEY_TAB,
-  ],
+  triggerKeys = DEFAULT_TRIGGER_KEYS,
+  fullStopCharacter,
+  dismissSuggestionsOnEscape = true,
   insertCurrentSelectionOnBlur = true,
   showCurrentWordAsLastSuggestion = true,
   enabled = true,
@@ -50,6 +61,29 @@ export const ReactTransliterate = ({
   const [matchEnd, setMatchEnd] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+
+  // start index of the word for which the suggestion box was closed
+  // with the escape key. `null` when no word is dismissed
+  const dismissedWordStartRef = useRef<number | null>(null);
+
+  // the english word is kept as is, so it ends with a full stop even when
+  // the language uses a purnaviram
+  const getSentenceTerminator = (suggestion: string) =>
+    isLatinText(suggestion)
+      ? DEFAULT_FULL_STOP_CHARACTER
+      : fullStopCharacter ?? getFullStopCharacter(lang);
+
+  const triggerKeyMap = useMemo(() => {
+    const map = new Map<string, TriggerKeyConfig>();
+
+    triggerKeys.forEach((triggerKey: TriggerKey) => {
+      const config =
+        typeof triggerKey === "string" ? { key: triggerKey } : triggerKey;
+      map.set(config.key, config);
+    });
+
+    return map;
+  }, [triggerKeys]);
 
   const shouldRenderSuggestions = useMemo(
     () =>
@@ -65,25 +99,47 @@ export const ReactTransliterate = ({
     setOptions([]);
   };
 
-  const handleSelection = (index: number) => {
+  const getInsertText = (config: TriggerKeyConfig, suggestion: string) => {
+    const { insertText = DEFAULT_INSERT_TEXT } = config;
+
+    if (typeof insertText === "string") {
+      return insertText;
+    }
+
+    return insertText({
+      key: config.key,
+      suggestion,
+      lang,
+      fullStopCharacter: getSentenceTerminator(suggestion),
+      value,
+      matchStart,
+      matchEnd,
+    });
+  };
+
+  const handleSelection = (index: number, insertText = DEFAULT_INSERT_TEXT) => {
     const currentString = value;
+    const suggestion = options[index];
+
     // create a new string with the currently typed word
     // replaced with the word in transliterated language
     const newValue =
       currentString.substring(0, matchStart) +
-      options[index] +
-      " " +
+      suggestion +
+      insertText +
       currentString.substring(matchEnd + 1, currentString.length);
 
-    // set the position of the caret (cursor) one character after the
-    // the position of the new word
+    // set the position of the caret (cursor) after the inserted text
     setTimeout(() => {
       setCaretPosition(
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         inputRef.current!,
-        matchStart + options[index].length + 1,
+        matchStart + suggestion.length + insertText.length,
       );
     }, 1);
+
+    // the word was replaced, so any escape dismissal for it no longer applies
+    dismissedWordStartRef.current = null;
 
     // bubble up event to the parent component
     const e = {
@@ -147,9 +203,20 @@ export const ReactTransliterate = ({
     setMatchStart(indexOfLastSpace + 1);
     setMatchEnd(caret - 1);
 
+    // the caret moved to a different word, so the word that was dismissed
+    // with the escape key is no longer being typed
+    if (
+      dismissedWordStartRef.current !== null &&
+      dismissedWordStartRef.current !== indexOfLastSpace + 1
+    ) {
+      dismissedWordStartRef.current = null;
+    }
+
+    const isDismissed = dismissedWordStartRef.current === indexOfLastSpace + 1;
+
     // currentWord is the word that is being typed
     const currentWord = value.slice(indexOfLastSpace + 1, caret);
-    if (currentWord && enabled) {
+    if (currentWord && enabled && !isDismissed) {
       // make an api call to fetch suggestions
       renderSuggestions(currentWord);
 
@@ -179,13 +246,23 @@ export const ReactTransliterate = ({
     const helperVisible = options.length > 0;
 
     if (helperVisible) {
-      if (triggerKeys.includes(event.key)) {
+      const triggerKey = triggerKeyMap.get(event.key);
+
+      if (triggerKey) {
         event.preventDefault();
-        handleSelection(selection);
+        handleSelection(
+          selection,
+          getInsertText(triggerKey, options[selection]),
+        );
       } else {
         switch (event.key) {
           case KEY_ESCAPE:
             event.preventDefault();
+            // keep the english word that was typed and stop showing
+            // suggestions until the next word is started
+            if (dismissSuggestionsOnEscape) {
+              dismissedWordStartRef.current = matchStart;
+            }
             reset();
             break;
           case KEY_UP:
@@ -291,5 +368,11 @@ export const ReactTransliterate = ({
   );
 };
 
-export type { ReactTransliterateProps, Language };
-export { TriggerKeys, getTransliterateSuggestions };
+export type { ReactTransliterateProps, Language, TriggerKey, TriggerKeyConfig };
+export {
+  TriggerKeys,
+  PUNCTUATION_TRIGGER_KEYS,
+  DEFAULT_TRIGGER_KEYS,
+  getFullStopCharacter,
+  getTransliterateSuggestions,
+};

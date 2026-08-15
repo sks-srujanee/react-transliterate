@@ -1,15 +1,17 @@
 {
-  "name": "react-transliterate",
-  "version": "1.1.9",
-  "description": "Transliterate component for React",
-  "author": "burhanuday",
+  "name": "@sks-srujanee/react-transliterate",
+  "version": "2.0.0",
+  "description": "Transliterate component for React with configurable trigger keys and punctuation handling",
+  "author": "SarthakSahoo1407",
   "license": "MIT",
-  "repository": "burhanuday/react-transliterate",
+  "repository": "sks-srujanee/react-transliterate",
   "types": "dist/types.d.ts",
   "keywords": [
     "react",
     "transliterate",
-    "english to hindi"
+    "english to hindi",
+    "indic",
+    "purnaviram"
   ],
   "main": "dist/index.js",
   "module": "dist/index.modern.js",
@@ -75,5 +77,12 @@
   ],
   "dependencies": {
     "textarea-caret": "^3.1.0"
+  },
+  "homepage": "https://github.com/sks-srujanee/react-transliterate#readme",
+  "bugs": {
+    "url": "https://github.com/sks-srujanee/react-transliterate/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

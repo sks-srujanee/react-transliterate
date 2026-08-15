@@ -4,8 +4,8 @@ import React, { useState } from "react";
 import { languages } from "./languages";
 
 // import component
-import { ReactTransliterate, Language } from "react-transliterate";
-import "react-transliterate/dist/index.css";
+import { ReactTransliterate, Language } from "@sks-srujanee/react-transliterate";
+import "@sks-srujanee/react-transliterate/dist/index.css";
 
 // Material Ui input component
 import Input from "@material-ui/core/Input";

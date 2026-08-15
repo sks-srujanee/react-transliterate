@@ -2,7 +2,9 @@
 
 Transliteration component for React with support for over 30 languages. Uses API from [Google Input Tools](https://www.google.com/inputtools)
 
-[![NPM](https://img.shields.io/npm/v/react-transliterate.svg)](https://www.npmjs.com/package/react-transliterate)
+Fork of [burhanuday/react-transliterate](https://github.com/burhanuday/react-transliterate), with configurable trigger keys, punctuation handling and sticky escape.
+
+[![NPM](https://img.shields.io/npm/v/@sks-srujanee/react-transliterate.svg)](https://www.npmjs.com/package/@sks-srujanee/react-transliterate)
 
 <p align="center">
 <img src="./assets/hi.gif"></img>
@@ -10,16 +12,16 @@ Transliteration component for React with support for over 30 languages. Uses API
 
 ## Demo
 
-[See Demo](https://burhanuday.github.io/react-transliterate/)
+[See Demo](https://sks-srujanee.github.io/react-transliterate/)
 
 ## Install
 
 ```bash
-npm install --save react-transliterate
+npm install --save @sks-srujanee/react-transliterate
 
 OR
 
-yarn add react-transliterate
+yarn add @sks-srujanee/react-transliterate
 ```
 
 ## Usage
@@ -29,8 +31,8 @@ yarn add react-transliterate
 ```jsx
 import React, { useState } from "react";
 
-import { ReactTransliterate } from "react-transliterate";
-import "react-transliterate/dist/index.css";
+import { ReactTransliterate } from "@sks-srujanee/react-transliterate";
+import "@sks-srujanee/react-transliterate/dist/index.css";
 
 const App = () => {
   const [text, setText] = useState("");
@@ -54,8 +56,8 @@ export default App;
 ```jsx
 import React, { useState } from "react";
 
-import { ReactTransliterate } from "react-transliterate";
-import "react-transliterate/dist/index.css";
+import { ReactTransliterate } from "@sks-srujanee/react-transliterate";
+import "@sks-srujanee/react-transliterate/dist/index.css";
 
 const App = () => {
   const [text, setText] = useState("");
@@ -80,8 +82,8 @@ export default App;
 ```tsx
 import React, { useState } from "react";
 
-import { ReactTransliterate, Language } from "react-transliterate";
-import "react-transliterate/dist/index.css";
+import { ReactTransliterate, Language } from "@sks-srujanee/react-transliterate";
+import "@sks-srujanee/react-transliterate/dist/index.css";
 
 const App = () => {
   const [text, setText] = useState("");
@@ -107,8 +109,8 @@ export default App;
 ```tsx
 import React, { useState } from "react";
 
-import { ReactTransliterate, Language } from "react-transliterate";
-import "react-transliterate/dist/index.css";
+import { ReactTransliterate, Language } from "@sks-srujanee/react-transliterate";
+import "@sks-srujanee/react-transliterate/dist/index.css";
 
 import Input from "@material-ui/core/Input";
 
@@ -137,17 +139,34 @@ export default App;
 
 ### Custom trigger keys
 
-Keys which when pressed, input the current selection to the textbox
+Keys which when pressed, input the current selection to the textbox.
 
-React Transliterate uses the `event.keycode` property to detect keys. Here are some predefined keys you can use. Or, you can enter the integer codes for any other key you'd like to use as the trigger
+By default:
+
+| Key                 | Inserted after the suggestion                                     |
+| ------------------- | ----------------------------------------------------------------- |
+| Space               | a space                                                            |
+| Enter               | nothing                                                            |
+| Tab                 | nothing                                                            |
+| Full stop           | the sentence terminator and a space, eg. `।` for `hi`, `.` for `ta` |
+| `?` `!` `,` `;` `:` | the punctuation followed by a space                                |
+
+The full stop key follows the suggestion that is being inserted, not only the
+language. Committing `नमस्ते` in `hi` gives `नमस्ते। `, while committing the english
+word that was typed gives `sarthak. `
+
+Pass `triggerKeys` to change this. An entry is either the key itself
+(`event.key`) or an object with the text to insert after the suggestion:
 
 ```jsx
 import React, { useState } from "react";
 
-import { ReactTransliterate, TriggerKeys } from "react-transliterate";
-import "react-transliterate/dist/index.css";
-
-import Input from "@material-ui/core/Input";
+import {
+  ReactTransliterate,
+  TriggerKeys,
+  PUNCTUATION_TRIGGER_KEYS,
+} from "@sks-srujanee/react-transliterate";
+import "@sks-srujanee/react-transliterate/dist/index.css";
 
 const App = () => {
   const [text, setText] = useState("");
@@ -160,10 +179,25 @@ const App = () => {
       }}
       lang="hi"
       triggerKeys={[
-        TriggerKeys.KEY_RETURN,
-        TriggerKeys.KEY_ENTER,
-        TriggerKeys.KEY_SPACE,
+        // insert the suggestion followed by a space
+        { key: TriggerKeys.KEY_SPACE, insertText: " " },
+        // insert the suggestion with nothing after it
+        { key: TriggerKeys.KEY_ENTER, insertText: "" },
+        // insert `।` after the suggestion for hi, `.` for languages
+        // that do not use a purnaviram, then a space
+        {
+          key: TriggerKeys.KEY_FULL_STOP,
+          insertText: ({ fullStopCharacter }) => `${fullStopCharacter} `,
+        },
+        // a plain string is the same as `{ key, insertText: " " }`
         TriggerKeys.KEY_TAB,
+        // punctuation, inserted after the suggestion and followed by a space
+        ...PUNCTUATION_TRIGGER_KEYS.map((key) => ({
+          key,
+          insertText: ({ key: pressedKey }) => `${pressedKey} `,
+        })),
+        // any other key works too
+        { key: "-", insertText: "-" },
       ]}
     />
   );
@@ -172,10 +206,25 @@ const App = () => {
 export default App;
 ```
 
+`insertText` can be a function, which receives
+`{ key, suggestion, lang, fullStopCharacter, value, matchStart, matchEnd }`
+and returns the text to insert.
+
+The sentence terminator used by the full stop key comes from `lang`. Override
+it with the `fullStopCharacter` prop, or read it yourself with
+`getFullStopCharacter(lang)`.
+
+### Dismissing suggestions
+
+Pressing `Escape` closes the suggestion box and keeps the english word that was
+typed. Suggestions stay hidden for that word until a new word is started. Set
+`dismissSuggestionsOnEscape={false}` to have the box reopen on the next
+keystroke instead.
+
 ## Get transliteration suggestions
 
 ```jsx
-import { getTransliterateSuggestions } from "react-transliterate";
+import { getTransliterateSuggestions } from "@sks-srujanee/react-transliterate";
 
 const data = await getTransliterateSuggestions(
   word, // word to fetch suggestions for
@@ -206,7 +255,9 @@ For a full example, take a look at the `example` folder
 | activeItemStyles                 |           | {}                                          | CSS styles object passed to the active item `<li>` tag                                                                               |
 | hideSuggestionBoxOnMobileDevices |           | `false`                                     | Should the suggestions be visible on mobile devices since keyboards like Gboard and Swiftkey support typing in multiple languages    |
 | hideSuggestionBoxBreakpoint      |           | 450                                         | type: `number`. To be used when `hideSuggestionBoxOnMobileDevices` is true. Suggestion box will not be shown below this device width |
-| triggerKeys                      |           | `KEY_SPACE, KEY_ENTER, KEY_TAB, KEY_RETURN` | Keys which when pressed, input the current selection to the textbox                                                                  |
+| triggerKeys                      |           | `KEY_SPACE, KEY_ENTER, KEY_TAB, KEY_FULL_STOP` and `PUNCTUATION_TRIGGER_KEYS` | Keys which when pressed, input the current selection to the textbox. Each entry is a key or `{ key, insertText }` |
+| fullStopCharacter                |           | terminator of `lang`, eg. `।` for `hi`      | Character inserted by the full stop trigger key. Ignored when the selected suggestion is the english word, which always takes `.`     |
+| dismissSuggestionsOnEscape       |           | `true`                                      | `Escape` keeps the typed english word and hides suggestions until the next word                                                      |
 | insertCurrentSelectionOnBlur     |           | `true`                                      | Should the current selection be inserted when `blur` event occurs                                                                    |
 | showCurrentWordAsLastSuggestion  |           | `true`                                      | Show current input as the last option in the suggestion box                                                                          |
 
@@ -252,4 +303,4 @@ For a full example, take a look at the `example` folder
 
 ## License
 
-MIT © [burhanuday](https://github.com/burhanuday)
+MIT © [burhanuday](https://github.com/burhanuday), fork maintained by [sks-srujanee](https://github.com/sks-srujanee)
