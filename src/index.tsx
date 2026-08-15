@@ -27,7 +27,7 @@ import { getTransliterateSuggestions } from "./util/suggestions-util";
 import { injectStyles } from "./util/style-util";
 import { toThemeStyles } from "./util/theme-util";
 import { ReactTransliterateTheme } from "./types/Theme";
-import { FetchSuggestions } from "./types/SuggestionSource";
+import { FetchSuggestions, SuggestionsResult } from "./types/SuggestionSource";
 import { createAnalyzeSource } from "./sources/analyze-source";
 
 injectStyles(css);
@@ -255,7 +255,7 @@ export const ReactTransliterate = ({
       requestControllerRef.current = controller;
 
       try {
-        const data = fetchSuggestions
+        const result = fetchSuggestions
           ? await fetchSuggestions(lastWord, {
               lang,
               numOptions,
@@ -276,10 +276,22 @@ export const ReactTransliterate = ({
           return;
         }
 
+        if (!fetchSuggestions) {
+          applyOptions(result as string[]);
+          return;
+        }
+
+        const suggestions = Array.isArray(result) ? result : result.suggestions;
+        // a source can refuse the typed word, for example when a spell
+        // checker reports it as invalid
+        const allowCurrentWord = Array.isArray(result)
+          ? true
+          : (result.allowCurrentWord ?? true);
+
         applyOptions(
-          fetchSuggestions && showCurrentWordAsLastSuggestion
-            ? [...data, lastWord]
-            : data,
+          showCurrentWordAsLastSuggestion && allowCurrentWord
+            ? [...suggestions, lastWord]
+            : suggestions,
         );
       } catch (error) {
         if (controller.signal.aborted) {
@@ -556,6 +568,7 @@ export type {
   TriggerKeyConfig,
   ReactTransliterateTheme,
   FetchSuggestions,
+  SuggestionsResult,
 };
 export {
   TriggerKeys,

@@ -274,6 +274,29 @@ describe("ReactTransliterate", () => {
     );
   });
 
+  it("leaves out the typed word when the source refuses it", async () => {
+    const fetchSuggestions = vi.fn(async () => ({
+      suggestions: [],
+      allowCurrentWord: false,
+    }));
+
+    render(
+      <ControlledTransliterate
+        lang="hi"
+        fetchSuggestions={fetchSuggestions}
+        onChangeText={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId("rt-input-component"), {
+      target: { value: "ेवेरय" },
+    });
+
+    await waitFor(() => expect(fetchSuggestions).toHaveBeenCalled());
+    expect(screen.queryByText("ेवेरय")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("rt-suggestions-list")).not.toBeInTheDocument();
+  });
+
   it("reports a failing source and closes the box", async () => {
     const onSuggestionsError = vi.fn();
     const fetchSuggestions = vi.fn(async () => {

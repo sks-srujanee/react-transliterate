@@ -318,6 +318,8 @@ const analyze = createAnalyzeSource({
   minConfidence: 0.6,
   // send the whole input for context instead of the word alone
   sendFullSentence: false,
+  // leave the typed word out when `validation.errors` reports it
+  dropInvalidWord: true,
   headers: { Authorization: `Bearer ${token}` },
 });
 
@@ -332,6 +334,15 @@ const analyze = createAnalyzeSource({
 Spelling suggestions come first, ordered by confidence, followed by the codemix
 options, with the typed word removed since the component appends it itself when
 `showCurrentWordAsLastSuggestion` is on.
+
+When the endpoint reports the word in `validation.errors`, for example the
+stray matra sequence `ेवेरय`, the source refuses the typed word so it is not
+offered even though `showCurrentWordAsLastSuggestion` is on. Any source can do
+this by answering with an object instead of an array:
+
+```js
+return { suggestions: [], allowCurrentWord: false };
+```
 
 ## Get transliteration suggestions
 

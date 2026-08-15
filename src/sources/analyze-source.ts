@@ -1,4 +1,4 @@
-import { FetchSuggestions } from "../types/SuggestionSource";
+import { FetchSuggestions, SuggestionsResult } from "../types/SuggestionSource";
 
 export interface AnalyzeWord {
   original: string;
@@ -56,6 +56,13 @@ export interface AnalyzeSourceConfig {
    */
   sendFullSentence?: boolean;
 
+  /**
+   * Leave the typed word out of the suggestions when `validation.errors`
+   * reports it, so that a word the endpoint calls invalid cannot be
+   * committed. Defaults to `true`
+   */
+  dropInvalidWord?: boolean;
+
   /** extra headers, for example an authorization header */
   headers?: Record<string, string>;
 }
@@ -81,10 +88,11 @@ export const createAnalyzeSource = (
     use = "both",
     minConfidence = 0,
     sendFullSentence = false,
+    dropInvalidWord = true,
     headers = {},
   } = config;
 
-  return async (word, context) => {
+  return async (word, context): Promise<SuggestionsResult> => {
     const sentence = sendFullSentence ? context.value : word;
 
     const response = await fetch(url, {
@@ -113,8 +121,14 @@ export const createAnalyzeSource = (
       ) ??
       words[0];
 
+    // the endpoint reports words it could not parse, eg. a stray matra
+    // sequence like `ेवेरय`
+    const isInvalid =
+      dropInvalidWord &&
+      (data.validation?.errors ?? []).some((error) => error.word === word);
+
     if (!match) {
-      return [];
+      return { suggestions: [], allowCurrentWord: !isInvalid };
     }
 
     const spelling =
@@ -135,6 +149,12 @@ export const createAnalyzeSource = (
       (suggestion) => suggestion !== word,
     );
 
-    return Array.from(new Set(suggestions)).slice(0, context.numOptions);
+    return {
+      suggestions: Array.from(new Set(suggestions)).slice(
+        0,
+        context.numOptions,
+      ),
+      allowCurrentWord: !isInvalid,
+    };
   };
 };

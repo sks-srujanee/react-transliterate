@@ -16,6 +16,8 @@ import Input from "@mui/material/Input";
 // spelling and codemix suggestions for text that is already in the script
 const analyzeSource = createAnalyzeSource({
   url: "https://labs-prod.srujanee.in/v1/analyze",
+  use: "both",
+  minConfidence: 0.6,
 });
 
 const darkTheme = {

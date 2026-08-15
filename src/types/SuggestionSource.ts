@@ -23,11 +23,25 @@ export interface FetchSuggestionsContext {
   signal: AbortSignal;
 }
 
+export interface SuggestionsResult {
+  /** suggestions to show, in the order they should appear */
+  suggestions: string[];
+
+  /**
+   * Whether the typed word may be offered as the last suggestion. Defaults
+   * to `true`. Return `false` when the source knows the word is not usable,
+   * for example when a spell checker rejects it, and it will be left out
+   * even with `showCurrentWordAsLastSuggestion` on
+   */
+  allowCurrentWord?: boolean;
+}
+
 /**
- * Returns the suggestions for `word`. Reject or throw to report a failure,
- * which is passed to `onSuggestionsError`
+ * Returns the suggestions for `word`, either as a plain list or as a
+ * `SuggestionsResult`. Reject or throw to report a failure, which is passed
+ * to `onSuggestionsError`
  */
 export type FetchSuggestions = (
   word: string,
   context: FetchSuggestionsContext,
-) => Promise<string[]>;
+) => Promise<string[] | SuggestionsResult>;

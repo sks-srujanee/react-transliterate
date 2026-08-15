@@ -30,7 +30,10 @@ describe("createAnalyzeSource", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const source = createAnalyzeSource({ url: "https://example.test/analyze" });
-    await expect(source("बड", context)).resolves.toEqual(["budd", "bud"]);
+    await expect(source("बड", context)).resolves.toEqual({
+      suggestions: ["budd", "bud"],
+      allowCurrentWord: true,
+    });
 
     const [, init] = fetchMock.mock.calls[0] as unknown as [
       string,
@@ -71,7 +74,43 @@ describe("createAnalyzeSource", () => {
     // the typed word is dropped, the component appends it itself
     await expect(
       source("पड़ेगा", { ...context, value: "पड़ेगा" }),
-    ).resolves.toEqual(["पडेगा"]);
+    ).resolves.toEqual({ suggestions: ["पडेगा"], allowCurrentWord: true });
+
+    vi.unstubAllGlobals();
+  });
+
+  it("refuses a word the endpoint reports as invalid", async () => {
+    vi.stubGlobal(
+      "fetch",
+      respondWith({
+        words: [
+          {
+            original: "पड़ेगा",
+            spell_suggestions: [],
+            codemix_options: [],
+            start: 0,
+          },
+        ],
+        validation: {
+          normalized: "पड़ेगा ब  ेवेरय",
+          valid: false,
+          errors: [
+            {
+              word_index: 2,
+              word: "ेवेरय",
+              error_index: 0,
+              error_reason: "invalid_sequence",
+            },
+          ],
+        },
+      }),
+    );
+
+    const source = createAnalyzeSource({ url: "https://example.test/analyze" });
+
+    await expect(
+      source("ेवेरय", { ...context, value: "पड़ेगा ब  ेवेरय" }),
+    ).resolves.toEqual({ suggestions: [], allowCurrentWord: false });
 
     vi.unstubAllGlobals();
   });
@@ -126,7 +165,7 @@ describe("createAnalyzeSource", () => {
         matchStart: 7,
         matchEnd: 8,
       }),
-    ).resolves.toEqual(["bud"]);
+    ).resolves.toEqual({ suggestions: ["bud"], allowCurrentWord: true });
 
     vi.unstubAllGlobals();
   });
