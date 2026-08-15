@@ -57,14 +57,44 @@ export const ReactTransliterate = ({
   const [left, setLeft] = useState(0);
   const [top, setTop] = useState(0);
   const [selection, setSelection] = useState<number>(0);
-  const [matchStart, setMatchStart] = useState(-1);
-  const [matchEnd, setMatchEnd] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
 
   // start index of the word for which the suggestion box was closed
   // with the escape key. `null` when no word is dismissed
   const dismissedWordStartRef = useRef<number | null>(null);
+
+  /**
+   * `blur` can fire in the same tick as a state update, for example when a
+   * parent escape handler calls `document.activeElement.blur()` after this
+   * component has already handled the same keydown. The state update is only
+   * queued at that point, so a handler that reads `options` or `selection`
+   * from the render closure can see the previous value. Every handler that
+   * can run before the re-render reads these refs instead, and the render
+   * output keeps using the state.
+   *
+   * The match bounds are only ever read from handlers, so they are kept in
+   * refs alone
+   */
+  const optionsRef = useRef<string[]>([]);
+  const selectionRef = useRef(0);
+  const matchStartRef = useRef(-1);
+  const matchEndRef = useRef(-1);
+
+  const applyOptions = (next: string[]) => {
+    optionsRef.current = next;
+    setOptions(next);
+  };
+
+  const applySelection = (next: number) => {
+    selectionRef.current = next;
+    setSelection(next);
+  };
+
+  const applyMatch = (start: number, end: number) => {
+    matchStartRef.current = start;
+    matchEndRef.current = end;
+  };
 
   // the english word is kept as is, so it ends with a full stop even when
   // the language uses a purnaviram
@@ -95,8 +125,8 @@ export const ReactTransliterate = ({
 
   const reset = () => {
     // reset the component
-    setSelection(0);
-    setOptions([]);
+    applySelection(0);
+    applyOptions([]);
   };
 
   const getInsertText = (config: TriggerKeyConfig, suggestion: string) => {
@@ -112,28 +142,30 @@ export const ReactTransliterate = ({
       lang,
       fullStopCharacter: getSentenceTerminator(suggestion),
       value,
-      matchStart,
-      matchEnd,
+      matchStart: matchStartRef.current,
+      matchEnd: matchEndRef.current,
     });
   };
 
   const handleSelection = (index: number, insertText = DEFAULT_INSERT_TEXT) => {
     const currentString = value;
-    const suggestion = options[index];
+    const suggestion = optionsRef.current[index];
+    const start = matchStartRef.current;
+    const end = matchEndRef.current;
 
     // create a new string with the currently typed word
     // replaced with the word in transliterated language
     const newValue =
-      currentString.substring(0, matchStart) +
+      currentString.substring(0, start) +
       suggestion +
       insertText +
-      currentString.substring(matchEnd + 1, currentString.length);
+      currentString.substring(end + 1, currentString.length);
 
     // set the position of the caret (cursor) after the inserted text
     setTimeout(() => {
       setCaretPosition(
         inputRef.current!,
-        matchStart + suggestion.length + insertText.length,
+        start + suggestion.length + insertText.length,
       );
     }, 1);
 
@@ -166,7 +198,7 @@ export const ReactTransliterate = ({
       showCurrentWordAsLastSuggestion,
       lang,
     });
-    setOptions(data);
+    applyOptions(data);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -199,8 +231,7 @@ export const ReactTransliterate = ({
     // one character after the space character
     // index of last character is one before the current position
     // of the caret
-    setMatchStart(indexOfLastSpace + 1);
-    setMatchEnd(caret - 1);
+    applyMatch(indexOfLastSpace + 1, caret - 1);
 
     // the caret moved to a different word, so the word that was dismissed
     // with the escape key is no longer being typed
@@ -242,7 +273,9 @@ export const ReactTransliterate = ({
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    const helperVisible = options.length > 0;
+    const currentOptions = optionsRef.current;
+    const currentSelection = selectionRef.current;
+    const helperVisible = currentOptions.length > 0;
 
     if (helperVisible) {
       const triggerKey = triggerKeyMap.get(event.key);
@@ -250,8 +283,8 @@ export const ReactTransliterate = ({
       if (triggerKey) {
         event.preventDefault();
         handleSelection(
-          selection,
-          getInsertText(triggerKey, options[selection]),
+          currentSelection,
+          getInsertText(triggerKey, currentOptions[currentSelection]),
         );
       } else {
         switch (event.key) {
@@ -260,17 +293,20 @@ export const ReactTransliterate = ({
             // keep the english word that was typed and stop showing
             // suggestions until the next word is started
             if (dismissSuggestionsOnEscape) {
-              dismissedWordStartRef.current = matchStart;
+              dismissedWordStartRef.current = matchStartRef.current;
             }
             reset();
             break;
           case KEY_UP:
             event.preventDefault();
-            setSelection((options.length + selection - 1) % options.length);
+            applySelection(
+              (currentOptions.length + currentSelection - 1) %
+                currentOptions.length,
+            );
             break;
           case KEY_DOWN:
             event.preventDefault();
-            setSelection((selection + 1) % options.length);
+            applySelection((currentSelection + 1) % currentOptions.length);
             break;
           default:
             onKeyDown?.(event);
@@ -286,8 +322,15 @@ export const ReactTransliterate = ({
     event: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     if (!isTouchEnabled()) {
-      if (insertCurrentSelectionOnBlur && options[selection]) {
-        handleSelection(selection);
+      // read the refs, not the state: a parent escape handler can call
+      // `blur()` in the same tick as the reset that this component queued
+      const currentSelection = selectionRef.current;
+
+      if (
+        insertCurrentSelectionOnBlur &&
+        optionsRef.current[currentSelection]
+      ) {
+        handleSelection(currentSelection);
       } else {
         reset();
       }
@@ -353,7 +396,7 @@ export const ReactTransliterate = ({
               className={index === selection ? classes.Active : undefined}
               style={index === selection ? activeItemStyles || {} : {}}
               onMouseEnter={() => {
-                setSelection(index);
+                applySelection(index);
               }}
               onClick={() => handleSelection(index)}
               key={item}

@@ -202,6 +202,39 @@ describe("ReactTransliterate", () => {
     await waitFor(() => screen.getByText("hi"));
   });
 
+  it("does not insert on blur when a parent escape handler blurs the input", async () => {
+    mockSuggestions(["hi", "hey", "hello"]);
+    const mockOnChangeText = vi.fn();
+    render(<ControlledTransliterate onChangeText={mockOnChangeText} />);
+
+    const input = screen.getByTestId("rt-input-component") as HTMLInputElement;
+
+    // apps commonly close editors on escape from a window listener, which
+    // runs in the same event dispatch as this component's own handler
+    const blurOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        (document.activeElement as HTMLElement)?.blur();
+      }
+    };
+    window.addEventListener("keydown", blurOnEscape);
+
+    try {
+      input.focus();
+      fireEvent.change(input, { target: { value: "there" } });
+      await waitFor(() => screen.getByText("hi"));
+
+      fireEvent.keyDown(input, { key: "Escape" });
+
+      // the suggestion must not be inserted by the blur that escape caused
+      expect(mockOnChangeText).toHaveBeenLastCalledWith("there");
+      expect(
+        screen.queryByTestId("rt-suggestions-list"),
+      ).not.toBeInTheDocument();
+    } finally {
+      window.removeEventListener("keydown", blurOnEscape);
+    }
+  });
+
   it("renders suggestions list", async () => {
     mockSuggestions(["hi", "hey", "hello"]);
     const mockOnChangeText = vi.fn();
