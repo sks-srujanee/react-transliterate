@@ -20,16 +20,6 @@ const analyzeSource = createAnalyzeSource({
   minConfidence: 0.6,
 });
 
-const darkTheme = {
-  background: "#16161a",
-  color: "#e8e8ef",
-  activeBackground: "#f9c80e",
-  activeColor: "#16161a",
-  border: "1px solid #2a2a33",
-  borderRadius: "8px",
-  boxShadow: "0 12px 32px rgba(0, 0, 0, 0.45)",
-};
-
 const App = () => {
   const [text, setText] = useState("");
   const [analyzed, setAnalyzed] = useState("");
@@ -81,16 +71,13 @@ const App = () => {
 
       <div className="spacer" />
 
-      <label htmlFor="react-transliterate-analyze">
-        Custom endpoint with a dark theme
-      </label>
+      <label htmlFor="react-transliterate-analyze">Custom endpoint</label>
       <ReactTransliterate
         value={analyzed}
         onChangeText={setAnalyzed}
         lang={lang}
         fetchSuggestions={analyzeSource}
         onSuggestionsError={(error) => console.error(error)}
-        theme={darkTheme}
         placeholder="बड"
         id="react-transliterate-analyze"
       />

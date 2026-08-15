@@ -25,8 +25,7 @@ import {
 import { TriggerKey, TriggerKeyConfig } from "./types/TriggerKey";
 import { getTransliterateSuggestions } from "./util/suggestions-util";
 import { injectStyles } from "./util/style-util";
-import { toThemeStyles } from "./util/theme-util";
-import { ReactTransliterateTheme } from "./types/Theme";
+import { isValidIndicWord } from "./util/indic-util";
 import { FetchSuggestions, SuggestionsResult } from "./types/SuggestionSource";
 import { createAnalyzeSource } from "./sources/analyze-source";
 
@@ -61,11 +60,11 @@ export const ReactTransliterate = ({
   insertCurrentSelectionOnBlur = true,
   showCurrentWordAsLastSuggestion = true,
   enabled = true,
-  theme,
   suggestionsClassName = "",
   itemClassName = "",
   activeItemClassName = "",
   fetchSuggestions,
+  filterInvalidSuggestions = true,
   debounceMs = 0,
   minWordLength = 1,
   onSuggestionsError,
@@ -159,13 +158,6 @@ export const ReactTransliterate = ({
 
     return map;
   }, [triggerKeys]);
-
-  const themeStyles = useMemo(
-    () => toThemeStyles(theme),
-    // the object is usually written inline, so compare the values
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [JSON.stringify(theme ?? {})],
-  );
 
   const shouldRenderSuggestions = useMemo(
     () =>
@@ -276,8 +268,11 @@ export const ReactTransliterate = ({
           return;
         }
 
+        const keep = (suggestion: string) =>
+          !filterInvalidSuggestions || isValidIndicWord(suggestion);
+
         if (!fetchSuggestions) {
-          applyOptions(result as string[]);
+          applyOptions((result as string[]).filter(keep));
           return;
         }
 
@@ -288,10 +283,12 @@ export const ReactTransliterate = ({
           ? true
           : (result.allowCurrentWord ?? true);
 
+        const kept = suggestions.filter(keep);
+
         applyOptions(
           showCurrentWordAsLastSuggestion && allowCurrentWord
-            ? [...suggestions, lastWord]
-            : suggestions,
+            ? [...kept, lastWord]
+            : kept,
         );
       } catch (error) {
         if (controller.signal.aborted) {
@@ -525,7 +522,6 @@ export const ReactTransliterate = ({
             left: `${left + offsetX}px`,
             top: `${top + offsetY}px`,
             position: "absolute",
-            ...themeStyles,
           }}
           className={[classes.ReactTransliterate, suggestionsClassName]
             .filter(Boolean)
@@ -566,7 +562,6 @@ export type {
   Language,
   TriggerKey,
   TriggerKeyConfig,
-  ReactTransliterateTheme,
   FetchSuggestions,
   SuggestionsResult,
 };
@@ -577,4 +572,5 @@ export {
   getFullStopCharacter,
   getTransliterateSuggestions,
   createAnalyzeSource,
+  isValidIndicWord,
 };

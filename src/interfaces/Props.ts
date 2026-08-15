@@ -1,6 +1,5 @@
 import { Language } from "../types/Language";
 import { TriggerKey } from "../types/TriggerKey";
-import { ReactTransliterateTheme } from "../types/Theme";
 import { FetchSuggestions } from "../types/SuggestionSource";
 
 export interface ReactTransliterateProps extends React.HTMLProps<
@@ -119,13 +118,6 @@ export interface ReactTransliterateProps extends React.HTMLProps<
   enabled?: boolean;
 
   /**
-   * Theme tokens for the suggestion box. Each token is written as a css
-   * custom property on the list, so the same values can come from a
-   * stylesheet instead
-   */
-  theme?: ReactTransliterateTheme;
-
-  /**
    * Classname passed to the suggestion box `<ul>`
    */
   suggestionsClassName?: string;
@@ -148,6 +140,12 @@ export interface ReactTransliterateProps extends React.HTMLProps<
    * bounds of the word and an `AbortSignal` that fires when the word changes
    */
   fetchSuggestions?: FetchSuggestions;
+
+  /**
+   * Drop suggestions that are not typable in an indic script, such as a word
+   * that opens with a dependent vowel sign. Defaults to `true`
+   */
+  filterInvalidSuggestions?: boolean;
 
   /**
    * Wait this many milliseconds after the last keystroke before asking for

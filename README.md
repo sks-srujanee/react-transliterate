@@ -2,7 +2,9 @@
 
 Transliteration component for React with support for over 30 languages. Uses API from [Google Input Tools](https://www.google.com/inputtools)
 
-Fork of [burhanuday/react-transliterate](https://github.com/burhanuday/react-transliterate), with configurable trigger keys, punctuation handling and sticky escape.
+A fork of [react-transliterate](https://github.com/burhanuday/react-transliterate)
+by [Burhanuddin Udaipurwala](https://github.com/burhanuday), who wrote the
+original component this package is built on. See [credits](#credits).
 
 [![NPM](https://img.shields.io/npm/v/@sarthak1407/react-transliterate.svg)](https://www.npmjs.com/package/@sarthak1407/react-transliterate)
 
@@ -220,58 +222,24 @@ typed. Suggestions stay hidden for that word until a new word is started. Set
 `dismissSuggestionsOnEscape={false}` to have the box reopen on the next
 keystroke instead.
 
-### Theming
+### Styling
 
-Every visual value is a css custom property, so a theme is a plain object of
-tokens. Anything left out keeps the default.
+The suggestion box ships with its own styles, injected automatically. To
+restyle it, pass `suggestionsClassName`, `itemClassName` and
+`activeItemClassName` and write your own rules against those classes.
 
-```jsx
-<ReactTransliterate
-  value={text}
-  onChangeText={setText}
-  lang="hi"
-  theme={{
-    background: "#16161a",
-    color: "#e8e8ef",
-    activeBackground: "#f9c80e",
-    activeColor: "#16161a",
-    border: "1px solid #2a2a33",
-    borderRadius: "8px",
-    boxShadow: "0 12px 32px rgba(0, 0, 0, 0.45)",
-    fontSize: "15px",
-    maxHeight: "240px",
-  }}
-/>
-```
+### Invalid suggestions
 
-| Token                                    | Custom property                               | Default                       |
-| ---------------------------------------- | --------------------------------------------- | ----------------------------- |
-| `background`                             | `--rt-background`                             | `#fff`                        |
-| `color`                                  | `--rt-color`                                  | `inherit`                     |
-| `activeBackground`                       | `--rt-active-background`                      | `#65c3d7`                     |
-| `activeColor`                            | `--rt-active-color`                           | `#fff`                        |
-| `border`                                 | `--rt-border`                                 | `1px solid rgba(0,0,0,.15)`   |
-| `borderRadius`                           | `--rt-border-radius`                          | `0`                           |
-| `boxShadow`                              | `--rt-box-shadow`                             | `0 6px 12px rgba(0,0,0,.175)` |
-| `fontFamily` / `fontSize`                | `--rt-font-family` / `--rt-font-size`         | `inherit` / `14px`            |
-| `itemPaddingBlock` / `itemPaddingInline` | `--rt-item-padding-*`                         | `10px`                        |
-| `minWidth` / `maxWidth` / `maxHeight`    | `--rt-min-width` / `-max-width`/`-max-height` | `100px` / `320px` / `none`    |
-| `zIndex`                                 | `--rt-z-index`                                | `20000`                       |
+Transliteration endpoints sometimes answer with sequences an indic script does
+not allow. Typing `every` for Hindi returns `ेवेरय` among the options, which
+opens on a dependent vowel sign and cannot be typed. Suggestions like that are
+dropped before they reach the box: a word that starts with a combining mark,
+carries two dependent vowel signs in a row, or places one straight after a
+virama. Words with no indic characters, such as the english word being typed,
+are always kept.
 
-Because they are custom properties, a stylesheet works just as well, which is
-the way to theme by media query:
-
-```css
-@media (prefers-color-scheme: dark) {
-  .my-suggestions {
-    --rt-background: #16161a;
-    --rt-active-background: #f9c80e;
-  }
-}
-```
-
-Pass `suggestionsClassName`, `itemClassName` and `activeItemClassName` to hang
-your own classes on the list and its items.
+Set `filterInvalidSuggestions={false}` to receive the raw list, and use the
+exported `isValidIndicWord` to run the same check yourself.
 
 ### Custom suggestion source
 
@@ -443,6 +411,47 @@ cd example && yarn install && yarn dev   # example app on localhost:3000
 The library is built with Vite in library mode, types come from `tsc`, tests run
 on Vitest with jsdom, and the example app is a Vite React app.
 
+## Credits
+
+The original **react-transliterate** was written by
+[Burhanuddin Udaipurwala](https://github.com/burhanuday) and published at
+[burhanuday/react-transliterate](https://github.com/burhanuday/react-transliterate).
+The component, the suggestion box, the caret tracking and the language support
+that this package rests on are his work, released under the MIT license.
+Upstream is tracked as the `upstream` remote, so fixes there can be pulled in.
+
+Transliteration suggestions come from
+[Google Input Tools](https://www.google.com/inputtools).
+
+### This fork
+
+Maintained by [Sarthak Sahoo](https://github.com/sks-srujanee). Added on top of
+the original:
+
+- **Trigger keys with per key insertion.** `triggerKeys` accepts
+  `{ key, insertText }`, so space, enter, tab and punctuation each decide what
+  follows the suggestion. The full stop key inserts the sentence terminator of
+  the language, `।` for Hindi and `.` when the english word is the selection
+- **Punctuation keys.** `?` `!` `,` `;` `:` commit the highlighted suggestion
+  and add the punctuation with a space
+- **Escape that sticks.** Escape keeps the typed english word and hides
+  suggestions until the next word starts, and can no longer be undone by a
+  parent handler that blurs the input in the same event dispatch
+- **Invalid suggestion filtering.** Sequences an indic script does not allow,
+  such as `ेवेरय` for "every", are dropped before they reach the box
+- **Pluggable suggestion sources.** `fetchSuggestions` replaces the Google
+  endpoint with any api, with `debounceMs`, `minWordLength`,
+  `onSuggestionsError` and request cancellation. `createAnalyzeSource` adapts
+  an `/analyze` endpoint that returns spelling corrections and codemix options
+- **Styles that need no import.** The stylesheet is injected by the component,
+  with class hooks for the suggestion box and its items
+- **Modern toolchain.** Node 24, React 19, Vite library build, Vitest, ESLint 9
+  flat config, TypeScript 5.9
+
 ## License
 
-MIT © [burhanuday](https://github.com/burhanuday), fork maintained by [sks-srujanee](https://github.com/sks-srujanee)
+MIT.
+
+Copyright (c) 2021 [Burhanuddin Udaipurwala](https://github.com/burhanuday)
+for the original work, copyright (c) 2026
+[Sarthak Sahoo](https://github.com/sks-srujanee) for this fork.

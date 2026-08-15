@@ -341,27 +341,37 @@ describe("ReactTransliterate", () => {
     await waitFor(() => expect(fetchSuggestions).toHaveBeenCalledTimes(1));
   });
 
-  it("writes theme tokens as css custom properties", async () => {
-    mockSuggestions(["hi", "hey"]);
+  it("drops suggestions that are not typable in the script", async () => {
+    // what google answers for "every": one option opens on a matra
+    mockSuggestions(["एव्री", "एवेरी", "ेवेरय", "एवेरय"]);
+
+    render(<ControlledTransliterate lang="hi" onChangeText={vi.fn()} />);
+
+    fireEvent.change(screen.getByTestId("rt-input-component"), {
+      target: { value: "every" },
+    });
+
+    await waitFor(() => screen.getByText("एव्री"));
+    expect(screen.queryByText("ेवेरय")).not.toBeInTheDocument();
+    expect(screen.getByText("एवेरय")).toBeInTheDocument();
+  });
+
+  it("keeps invalid suggestions when the filter is off", async () => {
+    mockSuggestions(["एव्री", "ेवेरय"]);
 
     render(
       <ControlledTransliterate
-        theme={{ background: "#101014", activeBackground: "#f9c80e" }}
-        suggestionsClassName="my-list"
+        lang="hi"
+        filterInvalidSuggestions={false}
         onChangeText={vi.fn()}
       />,
     );
 
     fireEvent.change(screen.getByTestId("rt-input-component"), {
-      target: { value: "there" },
+      target: { value: "every" },
     });
 
-    const list = await screen.findByTestId("rt-suggestions-list");
-    expect(list.style.getPropertyValue("--rt-background")).toBe("#101014");
-    expect(list.style.getPropertyValue("--rt-active-background")).toBe(
-      "#f9c80e",
-    );
-    expect(list).toHaveClass("my-list");
+    await waitFor(() => screen.getByText("ेवेरय"));
   });
 
   it("renders suggestions list", async () => {

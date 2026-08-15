@@ -1,52 +1,29 @@
 .ReactTransliterate {
-  /* every value is a token so that the `theme` prop, or a stylesheet, can
-     override it without fighting specificity */
-  --rt-background: #fff;
-  --rt-color: inherit;
-  --rt-active-background: #65c3d7;
-  --rt-active-color: #fff;
-  --rt-border: 1px solid rgba(0, 0, 0, 0.15);
-  --rt-border-radius: 0;
-  --rt-box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
-  --rt-font-family: inherit;
-  --rt-font-size: 14px;
-  --rt-item-padding-block: 10px;
-  --rt-item-padding-inline: 10px;
-  --rt-min-width: 100px;
-  --rt-max-width: 320px;
-  --rt-max-height: none;
-  --rt-z-index: 20000;
-
   background-clip: padding-box;
-  background-color: var(--rt-background);
-  border: var(--rt-border);
-  border-radius: var(--rt-border-radius);
-  box-shadow: var(--rt-box-shadow);
-  color: var(--rt-color);
+  background-color: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
   display: block;
-  font-family: var(--rt-font-family);
-  font-size: var(--rt-font-size);
+  font-size: 14px;
   list-style: none;
   margin: 0;
   /* size to the longest suggestion instead of the input, which clipped
      longer words */
   width: max-content;
-  min-width: var(--rt-min-width);
-  max-width: var(--rt-max-width);
-  max-height: var(--rt-max-height);
-  overflow-y: auto;
+  min-width: 100px;
+  max-width: 320px;
   padding: 1px;
   text-align: left;
-  z-index: var(--rt-z-index);
+  z-index: 20000;
 }
 
 .ReactTransliterate > li {
   cursor: pointer;
-  padding: var(--rt-item-padding-block) var(--rt-item-padding-inline);
+  padding: 10px;
   overflow-wrap: anywhere;
 }
 
 .Active {
-  background-color: var(--rt-active-background);
-  color: var(--rt-active-color);
+  background-color: #017bff;
+  color: #fff;
 }
