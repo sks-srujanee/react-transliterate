@@ -301,6 +301,25 @@ For a full example, take a look at the `example` folder
 | Urdu                  | ur       |
 | Vietnamese            | vi       |
 
+## Development
+
+Requires node 20 or newer, node 24 is what the repo is pinned to in `.nvmrc`
+
+```bash
+nvm use            # node 24
+yarn install       # builds the library through the prepare script
+
+yarn test          # unit tests, lint and a production build
+yarn test:unit     # vitest
+yarn test:watch    # vitest in watch mode
+
+yarn start         # rebuild the library on change
+cd example && yarn install && yarn dev   # example app on localhost:3000
+```
+
+The library is built with Vite in library mode, types come from `tsc`, tests run
+on Vitest with jsdom, and the example app is a Vite React app.
+
 ## License
 
 MIT © [burhanuday](https://github.com/burhanuday), fork maintained by [sks-srujanee](https://github.com/sks-srujanee)

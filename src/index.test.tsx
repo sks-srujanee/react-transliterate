@@ -1,19 +1,28 @@
 import * as React from "react";
-import "@testing-library/jest-dom";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { rest } from "msw";
-import { setupServer } from "msw/node";
 import { ReactTransliterate, ReactTransliterateProps } from "./index";
 
-const server = setupServer(
-  rest.get("https://inputtools.google.com/request", (_, res, ctx) => {
-    return res(ctx.json(["SUCCESS", [["there", ["hi", "hey", "hello"]]]]));
-  }),
-);
+/**
+ * Stub the Google Input Tools call with a fixed list of suggestions
+ */
+const mockSuggestions = (suggestions: string[]) => {
+  const fetchMock = vi.fn(async (url: string) => {
+    const word = new URL(url).searchParams.get("text");
 
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+    return {
+      json: async () => ["SUCCESS", [[word, suggestions]]],
+    } as Response;
+  });
+
+  vi.stubGlobal("fetch", fetchMock);
+
+  return fetchMock;
+};
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 /**
  * `ReactTransliterate` is a controlled component, so key handling can only
@@ -45,29 +54,26 @@ describe("ReactTransliterate", () => {
   });
 
   it("renders without errors", () => {
-    const mockValue = "";
-    const mockOnChangeText = jest.fn();
-    render(
-      <ReactTransliterate value={mockValue} onChangeText={mockOnChangeText} />,
-    );
+    mockSuggestions(["hi", "hey", "hello"]);
+    const mockOnChangeText = vi.fn();
+    render(<ReactTransliterate value="" onChangeText={mockOnChangeText} />);
   });
 
   it("renders passed value in the input", () => {
+    mockSuggestions(["hi", "hey", "hello"]);
     const mockData = "MOCK_VALUE";
-    const mockValue = mockData;
-    const mockOnChangeText = jest.fn();
+    const mockOnChangeText = vi.fn();
     render(
-      <ReactTransliterate value={mockValue} onChangeText={mockOnChangeText} />,
+      <ReactTransliterate value={mockData} onChangeText={mockOnChangeText} />,
     );
     expect(screen.getByDisplayValue(mockData)).toBeInTheDocument();
   });
 
   it("calls onChangeText on user input", async () => {
-    const mockData = "MOCK_VALUE";
-    const mockValue = mockData;
-    const mockOnChangeText = jest.fn();
+    mockSuggestions(["hi", "hey", "hello"]);
+    const mockOnChangeText = vi.fn();
     render(
-      <ReactTransliterate value={mockValue} onChangeText={mockOnChangeText} />,
+      <ReactTransliterate value="MOCK_VALUE" onChangeText={mockOnChangeText} />,
     );
     fireEvent.change(screen.getByTestId("rt-input-component"), {
       target: { value: "H" },
@@ -79,7 +85,8 @@ describe("ReactTransliterate", () => {
   });
 
   it("inserts a trailing space when space is pressed", async () => {
-    const mockOnChangeText = jest.fn();
+    mockSuggestions(["hi", "hey", "hello"]);
+    const mockOnChangeText = vi.fn();
     render(<ControlledTransliterate onChangeText={mockOnChangeText} />);
 
     const input = screen.getByTestId("rt-input-component");
@@ -91,7 +98,8 @@ describe("ReactTransliterate", () => {
   });
 
   it("does not insert a trailing space when enter is pressed", async () => {
-    const mockOnChangeText = jest.fn();
+    mockSuggestions(["hi", "hey", "hello"]);
+    const mockOnChangeText = vi.fn();
     render(<ControlledTransliterate onChangeText={mockOnChangeText} />);
 
     const input = screen.getByTestId("rt-input-component");
@@ -103,13 +111,8 @@ describe("ReactTransliterate", () => {
   });
 
   it("inserts the purnaviram when full stop is pressed", async () => {
-    server.use(
-      rest.get("https://inputtools.google.com/request", (_, res, ctx) => {
-        return res(ctx.json(["SUCCESS", [["namaste", ["नमस्ते"]]]]));
-      }),
-    );
-
-    const mockOnChangeText = jest.fn();
+    mockSuggestions(["नमस्ते"]);
+    const mockOnChangeText = vi.fn();
     render(
       <ControlledTransliterate lang="hi" onChangeText={mockOnChangeText} />,
     );
@@ -123,13 +126,8 @@ describe("ReactTransliterate", () => {
   });
 
   it("inserts a full stop for languages without a purnaviram", async () => {
-    server.use(
-      rest.get("https://inputtools.google.com/request", (_, res, ctx) => {
-        return res(ctx.json(["SUCCESS", [["vanakkam", ["வணக்கம்"]]]]));
-      }),
-    );
-
-    const mockOnChangeText = jest.fn();
+    mockSuggestions(["வணக்கம்"]);
+    const mockOnChangeText = vi.fn();
     render(
       <ControlledTransliterate lang="ta" onChangeText={mockOnChangeText} />,
     );
@@ -143,7 +141,8 @@ describe("ReactTransliterate", () => {
   });
 
   it("inserts a full stop when the english word is selected", async () => {
-    const mockOnChangeText = jest.fn();
+    mockSuggestions(["सार्थक"]);
+    const mockOnChangeText = vi.fn();
     render(
       <ControlledTransliterate lang="hi" onChangeText={mockOnChangeText} />,
     );
@@ -159,7 +158,8 @@ describe("ReactTransliterate", () => {
   });
 
   it("inserts punctuation followed by a space", async () => {
-    const mockOnChangeText = jest.fn();
+    mockSuggestions(["hi", "hey", "hello"]);
+    const mockOnChangeText = vi.fn();
     render(<ControlledTransliterate onChangeText={mockOnChangeText} />);
 
     const input = screen.getByTestId("rt-input-component");
@@ -175,7 +175,8 @@ describe("ReactTransliterate", () => {
   });
 
   it("keeps the typed word and hides suggestions on escape", async () => {
-    const mockOnChangeText = jest.fn();
+    mockSuggestions(["hi", "hey", "hello"]);
+    const mockOnChangeText = vi.fn();
     render(<ControlledTransliterate onChangeText={mockOnChangeText} />);
 
     const input = screen.getByTestId("rt-input-component");
@@ -202,12 +203,11 @@ describe("ReactTransliterate", () => {
   });
 
   it("renders suggestions list", async () => {
-    const mockData = "MOCK_VALUE";
-    const mockValue = mockData;
-    const mockOnChangeText = jest.fn();
+    mockSuggestions(["hi", "hey", "hello"]);
+    const mockOnChangeText = vi.fn();
 
     render(
-      <ReactTransliterate value={mockValue} onChangeText={mockOnChangeText} />,
+      <ReactTransliterate value="MOCK_VALUE" onChangeText={mockOnChangeText} />,
     );
     fireEvent.change(screen.getByTestId("rt-input-component"), {
       target: { value: "there" },

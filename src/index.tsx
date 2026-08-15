@@ -52,7 +52,7 @@ export const ReactTransliterate = ({
   showCurrentWordAsLastSuggestion = true,
   enabled = true,
   ...rest
-}: ReactTransliterateProps): JSX.Element => {
+}: ReactTransliterateProps): React.JSX.Element => {
   const [options, setOptions] = useState<string[]>([]);
   const [left, setLeft] = useState(0);
   const [top, setTop] = useState(0);
@@ -71,7 +71,7 @@ export const ReactTransliterate = ({
   const getSentenceTerminator = (suggestion: string) =>
     isLatinText(suggestion)
       ? DEFAULT_FULL_STOP_CHARACTER
-      : fullStopCharacter ?? getFullStopCharacter(lang);
+      : (fullStopCharacter ?? getFullStopCharacter(lang));
 
   const triggerKeyMap = useMemo(() => {
     const map = new Map<string, TriggerKeyConfig>();
@@ -132,7 +132,6 @@ export const ReactTransliterate = ({
     // set the position of the caret (cursor) after the inserted text
     setTimeout(() => {
       setCaretPosition(
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         inputRef.current!,
         matchStart + suggestion.length + insertText.length,
       );
@@ -144,9 +143,9 @@ export const ReactTransliterate = ({
     // bubble up event to the parent component
     const e = {
       target: { value: newValue },
-    } as unknown as React.FormEvent<HTMLInputElement>;
+    } as unknown as React.ChangeEvent<HTMLInputElement>;
     onChangeText(newValue);
-    onChange && onChange(e);
+    onChange?.(e);
     reset();
     return inputRef.current?.focus();
   };
@@ -170,11 +169,11 @@ export const ReactTransliterate = ({
     setOptions(data);
   };
 
-  const handleChange = (e: React.FormEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.currentTarget.value;
 
     // bubble up event to the parent component
-    onChange && onChange(e);
+    onChange?.(e);
     onChangeText(value);
 
     if (!shouldRenderSuggestions) {
@@ -274,12 +273,12 @@ export const ReactTransliterate = ({
             setSelection((selection + 1) % options.length);
             break;
           default:
-            onKeyDown && onKeyDown(event);
+            onKeyDown?.(event);
             break;
         }
       }
     } else {
-      onKeyDown && onKeyDown(event);
+      onKeyDown?.(event);
     }
   };
 
@@ -293,7 +292,7 @@ export const ReactTransliterate = ({
         reset();
       }
     }
-    onBlur && onBlur(event);
+    onBlur?.(event);
   };
 
   const handleResize = () => {

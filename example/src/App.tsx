@@ -8,7 +8,7 @@ import { ReactTransliterate, Language } from "@sarthak1407/react-transliterate";
 import "@sarthak1407/react-transliterate/dist/index.css";
 
 // Material Ui input component
-import Input from "@material-ui/core/Input";
+import Input from "@mui/material/Input";
 
 const App = () => {
   const [text, setText] = useState("");

@@ -1,13 +1,15 @@
 import { Language } from "../types/Language";
 import { TriggerKey } from "../types/TriggerKey";
 
-export interface ReactTransliterateProps
-  extends React.HTMLProps<HTMLInputElement | HTMLTextAreaElement> {
+export interface ReactTransliterateProps extends React.HTMLProps<
+  HTMLInputElement | HTMLTextAreaElement
+> {
   /**
    * Component to render. You can pass components from your
    * component library as this prop. Default is `<input />`
    * @type React.ReactNode
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   renderComponent?: (props: any) => React.ReactNode;
 
   /**
