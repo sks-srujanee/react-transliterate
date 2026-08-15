@@ -1,6 +1,6 @@
 {
   "name": "@sarthak1407/react-transliterate",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "Transliterate component for React with configurable trigger keys and punctuation handling",
   "author": "SarthakSahoo1407",
   "license": "MIT",
