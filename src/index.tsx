@@ -8,6 +8,9 @@ import {
 } from "./util";
 import getCaretCoordinates from "textarea-caret";
 import classes from "./styles.module.css";
+// the same stylesheet as a string, injected so that consumers do not have to
+// import `dist/index.css` themselves
+import css from "./styles.module.css?inline";
 import { ReactTransliterateProps } from "./interfaces/Props";
 import { Language } from "./types/Language";
 import { PUNCTUATION_TRIGGER_KEYS, TriggerKeys } from "./constants/TriggerKeys";
@@ -21,6 +24,9 @@ import {
 } from "./constants/FullStopCharacters";
 import { TriggerKey, TriggerKeyConfig } from "./types/TriggerKey";
 import { getTransliterateSuggestions } from "./util/suggestions-util";
+import { injectStyles } from "./util/style-util";
+
+injectStyles(css);
 
 const KEY_UP = "ArrowUp";
 const KEY_DOWN = "ArrowDown";

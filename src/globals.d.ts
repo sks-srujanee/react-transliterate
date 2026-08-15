@@ -14,3 +14,8 @@ declare module "*.less" {
   const content: { [className: string]: string };
   export default content;
 }
+
+declare module "*.css?inline" {
+  const css: string;
+  export default css;
+}

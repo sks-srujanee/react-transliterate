@@ -26,13 +26,16 @@ yarn add @sarthak1407/react-transliterate
 
 ## Usage
 
+The component injects its own styles, so there is nothing to import. The same
+stylesheet is still published as `@sarthak1407/react-transliterate/dist/index.css`
+if you would rather load it through your own pipeline or override it.
+
 ### Basic example
 
 ```jsx
 import React, { useState } from "react";
 
 import { ReactTransliterate } from "@sarthak1407/react-transliterate";
-import "@sarthak1407/react-transliterate/dist/index.css";
 
 const App = () => {
   const [text, setText] = useState("");
@@ -57,7 +60,6 @@ export default App;
 import React, { useState } from "react";
 
 import { ReactTransliterate } from "@sarthak1407/react-transliterate";
-import "@sarthak1407/react-transliterate/dist/index.css";
 
 const App = () => {
   const [text, setText] = useState("");
@@ -83,7 +85,6 @@ export default App;
 import React, { useState } from "react";
 
 import { ReactTransliterate, Language } from "@sarthak1407/react-transliterate";
-import "@sarthak1407/react-transliterate/dist/index.css";
 
 const App = () => {
   const [text, setText] = useState("");
@@ -110,7 +111,6 @@ export default App;
 import React, { useState } from "react";
 
 import { ReactTransliterate, Language } from "@sarthak1407/react-transliterate";
-import "@sarthak1407/react-transliterate/dist/index.css";
 
 import Input from "@material-ui/core/Input";
 
@@ -143,13 +143,13 @@ Keys which when pressed, input the current selection to the textbox.
 
 By default:
 
-| Key                 | Inserted after the suggestion                                     |
-| ------------------- | ----------------------------------------------------------------- |
-| Space               | a space                                                            |
-| Enter               | nothing                                                            |
-| Tab                 | nothing                                                            |
+| Key                 | Inserted after the suggestion                                       |
+| ------------------- | ------------------------------------------------------------------- |
+| Space               | a space                                                             |
+| Enter               | nothing                                                             |
+| Tab                 | nothing                                                             |
 | Full stop           | the sentence terminator and a space, eg. `।` for `hi`, `.` for `ta` |
-| `?` `!` `,` `;` `:` | the punctuation followed by a space                                |
+| `?` `!` `,` `;` `:` | the punctuation followed by a space                                 |
 
 The full stop key follows the suggestion that is being inserted, not only the
 language. Committing `नमस्ते` in `hi` gives `नमस्ते। `, while committing the english
@@ -166,7 +166,6 @@ import {
   TriggerKeys,
   PUNCTUATION_TRIGGER_KEYS,
 } from "@sarthak1407/react-transliterate";
-import "@sarthak1407/react-transliterate/dist/index.css";
 
 const App = () => {
   const [text, setText] = useState("");
@@ -240,26 +239,26 @@ For a full example, take a look at the `example` folder
 
 ### Props
 
-| Prop                             | Required? | Default                                     | Description                                                                                                                          |
-| -------------------------------- | --------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| onChangeText                     | Yes       |                                             | Listener for the current value from the component. `(text: string) => void`                                                          |
-| value                            | Yes       |                                             | `value` prop to pass to the component                                                                                                |
-| enabled                          |           | true                                        | Control whether suggestions should be shown                                                                                          |
-| renderComponent                  |           | `(props) => <input {...props} />`           | Component to render. You can pass components from your component library as this prop                                                |
-| lang                             |           | hi                                          | Language you want to transliterate. See the following section for language codes                                                     |
-| maxOptions                       |           | 5                                           | Maximum number of suggestions to show in helper                                                                                      |
-| offsetY                          |           | 0                                           | Extra space between the top of the helper and bottom of the caret                                                                    |
-| offsetX                          |           | 0                                           | Extra space between the caret and left of the helper                                                                                 |
-| containerClassName               |           | empty string                                | Classname passed to the container of the component                                                                                   |
-| containerStyles                  |           | {}                                          | CSS styles object passed to the container                                                                                            |
-| activeItemStyles                 |           | {}                                          | CSS styles object passed to the active item `<li>` tag                                                                               |
-| hideSuggestionBoxOnMobileDevices |           | `false`                                     | Should the suggestions be visible on mobile devices since keyboards like Gboard and Swiftkey support typing in multiple languages    |
-| hideSuggestionBoxBreakpoint      |           | 450                                         | type: `number`. To be used when `hideSuggestionBoxOnMobileDevices` is true. Suggestion box will not be shown below this device width |
-| triggerKeys                      |           | `KEY_SPACE, KEY_ENTER, KEY_TAB, KEY_FULL_STOP` and `PUNCTUATION_TRIGGER_KEYS` | Keys which when pressed, input the current selection to the textbox. Each entry is a key or `{ key, insertText }` |
-| fullStopCharacter                |           | terminator of `lang`, eg. `।` for `hi`      | Character inserted by the full stop trigger key. Ignored when the selected suggestion is the english word, which always takes `.`     |
-| dismissSuggestionsOnEscape       |           | `true`                                      | `Escape` keeps the typed english word and hides suggestions until the next word                                                      |
-| insertCurrentSelectionOnBlur     |           | `true`                                      | Should the current selection be inserted when `blur` event occurs                                                                    |
-| showCurrentWordAsLastSuggestion  |           | `true`                                      | Show current input as the last option in the suggestion box                                                                          |
+| Prop                             | Required? | Default                                                                       | Description                                                                                                                          |
+| -------------------------------- | --------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| onChangeText                     | Yes       |                                                                               | Listener for the current value from the component. `(text: string) => void`                                                          |
+| value                            | Yes       |                                                                               | `value` prop to pass to the component                                                                                                |
+| enabled                          |           | true                                                                          | Control whether suggestions should be shown                                                                                          |
+| renderComponent                  |           | `(props) => <input {...props} />`                                             | Component to render. You can pass components from your component library as this prop                                                |
+| lang                             |           | hi                                                                            | Language you want to transliterate. See the following section for language codes                                                     |
+| maxOptions                       |           | 5                                                                             | Maximum number of suggestions to show in helper                                                                                      |
+| offsetY                          |           | 0                                                                             | Extra space between the top of the helper and bottom of the caret                                                                    |
+| offsetX                          |           | 0                                                                             | Extra space between the caret and left of the helper                                                                                 |
+| containerClassName               |           | empty string                                                                  | Classname passed to the container of the component                                                                                   |
+| containerStyles                  |           | {}                                                                            | CSS styles object passed to the container                                                                                            |
+| activeItemStyles                 |           | {}                                                                            | CSS styles object passed to the active item `<li>` tag                                                                               |
+| hideSuggestionBoxOnMobileDevices |           | `false`                                                                       | Should the suggestions be visible on mobile devices since keyboards like Gboard and Swiftkey support typing in multiple languages    |
+| hideSuggestionBoxBreakpoint      |           | 450                                                                           | type: `number`. To be used when `hideSuggestionBoxOnMobileDevices` is true. Suggestion box will not be shown below this device width |
+| triggerKeys                      |           | `KEY_SPACE, KEY_ENTER, KEY_TAB, KEY_FULL_STOP` and `PUNCTUATION_TRIGGER_KEYS` | Keys which when pressed, input the current selection to the textbox. Each entry is a key or `{ key, insertText }`                    |
+| fullStopCharacter                |           | terminator of `lang`, eg. `।` for `hi`                                        | Character inserted by the full stop trigger key. Ignored when the selected suggestion is the english word, which always takes `.`    |
+| dismissSuggestionsOnEscape       |           | `true`                                                                        | `Escape` keeps the typed english word and hides suggestions until the next word                                                      |
+| insertCurrentSelectionOnBlur     |           | `true`                                                                        | Should the current selection be inserted when `blur` event occurs                                                                    |
+| showCurrentWordAsLastSuggestion  |           | `true`                                                                        | Show current input as the last option in the suggestion box                                                                          |
 
 ### Supported Languages
 
