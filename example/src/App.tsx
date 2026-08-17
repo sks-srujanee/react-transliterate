@@ -4,22 +4,25 @@ import React, { useState } from "react";
 import { languages } from "./languages";
 
 // import component
-import { ReactTransliterate, Language } from "@sarthak1407/react-transliterate";
+import {
+  ReactTransliterate,
+  Language,
+  createAnalyzeValidator,
+} from "@sarthak1407/react-transliterate";
 
 // Material Ui input component
 import Input from "@mui/material/Input";
 
-// spelling and codemix suggestions for text that is already in the script,
-// used by the custom endpoint demo below
-// const analyzeSource = createAnalyzeSource({
-//   url: import.meta.env.VITE_ANALYZE_URL,
-//   use: "both",
-//   minConfidence: 0.6,
-// });
+// the analyze endpoint throws out suggestions it cannot parse, such as
+// `ेवेरय` for "every". Set VITE_ANALYZE_URL to switch it on, see .env.example
+const analyzeUrl = import.meta.env.VITE_ANALYZE_URL;
+
+const validateSuggestions = analyzeUrl
+  ? createAnalyzeValidator({ url: analyzeUrl })
+  : undefined;
 
 const App = () => {
   const [text, setText] = useState("");
-  // const [analyzed, setAnalyzed] = useState("");
 
   const [lang, setLang] = useState<Language>("hi");
 
@@ -48,6 +51,7 @@ const App = () => {
           setText(text);
         }}
         lang={lang}
+        validateSuggestions={validateSuggestions}
         placeholder="Start typing here..."
         id="react-transliterate-input"
       />
@@ -62,22 +66,10 @@ const App = () => {
           setText(text);
         }}
         lang={lang}
+        validateSuggestions={validateSuggestions}
         placeholder="Start typing here..."
         id="react-transliterate-textarea"
       />
-
-      <div className="spacer" />
-
-      {/* <label htmlFor="react-transliterate-analyze">Custom endpoint</label>
-      <ReactTransliterate
-        value={analyzed}
-        onChangeText={setAnalyzed}
-        lang={lang}
-        fetchSuggestions={analyzeSource}
-        onSuggestionsError={(error) => console.error(error)}
-        placeholder="बड"
-        id="react-transliterate-analyze"
-      /> */}
 
       <div className="spacer" />
 
@@ -97,6 +89,7 @@ const App = () => {
           setText(text);
         }}
         lang={lang}
+        validateSuggestions={validateSuggestions}
         placeholder="Start typing here..."
         id="react-transliterate-material-ui-input"
       />
