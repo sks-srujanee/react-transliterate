@@ -148,7 +148,7 @@ By default:
 | Key                 | Inserted after the suggestion                                       |
 | ------------------- | ------------------------------------------------------------------- |
 | Space               | a space                                                             |
-| Enter               | nothing                                                             |
+| Enter               | a space                                                             |
 | Tab                 | nothing                                                             |
 | Full stop           | the sentence terminator and a space, eg. `।` for `hi`, `.` for `ta` |
 | `?` `!` `,` `;` `:` | the punctuation followed by a space                                 |

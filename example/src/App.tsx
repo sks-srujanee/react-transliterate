@@ -4,25 +4,22 @@ import React, { useState } from "react";
 import { languages } from "./languages";
 
 // import component
-import {
-  ReactTransliterate,
-  Language,
-  createAnalyzeSource,
-} from "@sarthak1407/react-transliterate";
+import { ReactTransliterate, Language } from "@sarthak1407/react-transliterate";
 
 // Material Ui input component
 import Input from "@mui/material/Input";
 
-// spelling and codemix suggestions for text that is already in the script
-const analyzeSource = createAnalyzeSource({
-  url: "https://labs-prod.srujanee.in/v1/analyze",
-  use: "both",
-  minConfidence: 0.6,
-});
+// spelling and codemix suggestions for text that is already in the script,
+// used by the custom endpoint demo below
+// const analyzeSource = createAnalyzeSource({
+//   url: "https://labs-prod.srujanee.in/v1/analyze",
+//   use: "both",
+//   minConfidence: 0.6,
+// });
 
 const App = () => {
   const [text, setText] = useState("");
-  const [analyzed, setAnalyzed] = useState("");
+  // const [analyzed, setAnalyzed] = useState("");
 
   const [lang, setLang] = useState<Language>("hi");
 
@@ -71,7 +68,7 @@ const App = () => {
 
       <div className="spacer" />
 
-      <label htmlFor="react-transliterate-analyze">Custom endpoint</label>
+      {/* <label htmlFor="react-transliterate-analyze">Custom endpoint</label>
       <ReactTransliterate
         value={analyzed}
         onChangeText={setAnalyzed}
@@ -80,7 +77,7 @@ const App = () => {
         onSuggestionsError={(error) => console.error(error)}
         placeholder="बड"
         id="react-transliterate-analyze"
-      />
+      /> */}
 
       <div className="spacer" />
 

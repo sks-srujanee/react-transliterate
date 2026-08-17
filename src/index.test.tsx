@@ -97,7 +97,7 @@ describe("ReactTransliterate", () => {
     expect(mockOnChangeText).toHaveBeenLastCalledWith("hi ");
   });
 
-  it("does not insert a trailing space when enter is pressed", async () => {
+  it("inserts a trailing space when enter is pressed", async () => {
     mockSuggestions(["hi", "hey", "hello"]);
     const mockOnChangeText = vi.fn();
     render(<ControlledTransliterate onChangeText={mockOnChangeText} />);
@@ -107,7 +107,7 @@ describe("ReactTransliterate", () => {
     await waitFor(() => screen.getByText("hi"));
 
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(mockOnChangeText).toHaveBeenLastCalledWith("hi");
+    expect(mockOnChangeText).toHaveBeenLastCalledWith("hi ");
   });
 
   it("inserts the purnaviram when full stop is pressed", async () => {

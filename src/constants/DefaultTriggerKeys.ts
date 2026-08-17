@@ -5,7 +5,8 @@ import { PUNCTUATION_TRIGGER_KEYS, TriggerKeys } from "./TriggerKeys";
  * Default keys that commit the highlighted suggestion.
  *
  * - space inserts the suggestion followed by a space
- * - enter and tab insert the suggestion without a trailing space
+ * - enter inserts the suggestion followed by a space, tab inserts it with
+ *   nothing after it
  * - full stop inserts the suggestion followed by the sentence terminator
  *   and a space. The terminator is `.` when the suggestion is the english
  *   word that was typed and the purnaviram of the language otherwise
