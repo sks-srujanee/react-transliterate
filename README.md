@@ -183,7 +183,7 @@ const App = () => {
         // insert the suggestion followed by a space
         { key: TriggerKeys.KEY_SPACE, insertText: " " },
         // insert the suggestion with nothing after it
-        { key: TriggerKeys.KEY_ENTER, insertText: "" },
+        { key: TriggerKeys.KEY_ENTER, insertText: " " },
         // insert `।` after the suggestion for hi, `.` for languages
         // that do not use a purnaviram, then a space
         {

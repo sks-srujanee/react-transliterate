@@ -14,7 +14,7 @@ import { PUNCTUATION_TRIGGER_KEYS, TriggerKeys } from "./TriggerKeys";
  */
 export const DEFAULT_TRIGGER_KEYS: TriggerKey[] = [
   { key: TriggerKeys.KEY_SPACE, insertText: " " },
-  { key: TriggerKeys.KEY_ENTER, insertText: "" },
+  { key: TriggerKeys.KEY_ENTER, insertText: " " },
   { key: TriggerKeys.KEY_TAB, insertText: "" },
   {
     key: TriggerKeys.KEY_FULL_STOP,
