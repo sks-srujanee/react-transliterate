@@ -247,30 +247,65 @@ exported `isValidIndicWord` to run the same check yourself.
 the word being typed plus the language, the full input value, the bounds of the
 word and an `AbortSignal` that fires when the word changes.
 
+Keep the endpoint out of the source: read it from the environment, so the same
+build can point at staging or production.
+
 ```jsx
-<ReactTransliterate
-  value={text}
-  onChangeText={setText}
-  lang="hi"
-  fetchSuggestions={async (word, { lang, signal }) => {
-    const res = await fetch("https://example.com/suggest", {
+import { useCallback, useState } from "react";
+import { ReactTransliterate } from "@sarthak1407/react-transliterate";
+
+// vite exposes VITE_ prefixed variables, next.js uses NEXT_PUBLIC_
+const SUGGEST_URL = import.meta.env.VITE_SUGGEST_URL;
+
+const App = () => {
+  const [text, setText] = useState("");
+
+  // wrap in useCallback so a new function identity does not restart requests
+  const fetchSuggestions = useCallback(async (word, { lang, signal }) => {
+    const response = await fetch(SUGGEST_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ word, lang }),
+      body: JSON.stringify({ word, language: lang }),
+      // lets the component drop the request when the word changes
       signal,
     });
-    const data = await res.json();
+
+    if (!response.ok) {
+      throw new Error(`suggestions failed with ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // return the words in the order they should be shown
     return data.suggestions;
-  }}
-  onSuggestionsError={(error) => console.error(error)}
-  debounceMs={150}
-  minWordLength={2}
-/>
+  }, []);
+
+  return (
+    <ReactTransliterate
+      value={text}
+      onChangeText={setText}
+      lang="hi"
+      fetchSuggestions={fetchSuggestions}
+      // one request per pause instead of per keystroke
+      debounceMs={150}
+      minWordLength={2}
+      onSuggestionsError={(error) => console.error(error)}
+    />
+  );
+};
 ```
 
-`createAnalyzeSource` is a ready made source for an `/analyze` endpoint that
-takes `{ sentence, language }` and answers with per word `spell_suggestions`
-and `codemix_options`:
+A source can also answer with an object instead of an array, to keep the typed
+word out of the box when the endpoint says the word is not usable:
+
+```js
+return { suggestions: ["बड़ा", "बड़े"], allowCurrentWord: false };
+```
+
+#### Ready made source for an `/analyze` endpoint
+
+`createAnalyzeSource` adapts an endpoint that takes `{ sentence, language }`
+and answers with per word `spell_suggestions` and `codemix_options`:
 
 ```jsx
 import {
@@ -278,8 +313,10 @@ import {
   createAnalyzeSource,
 } from "@sarthak1407/react-transliterate";
 
+// created once, outside the component, so the identity stays stable
 const analyze = createAnalyzeSource({
-  url: "https://labs-prod.srujanee.in/v1/analyze",
+  // your endpoint, from the environment rather than hardcoded
+  url: import.meta.env.VITE_ANALYZE_URL,
   // "spell" for corrections, "codemix" for the latin spellings, or "both"
   use: "both",
   // drop spelling suggestions the endpoint is unsure about
@@ -291,26 +328,42 @@ const analyze = createAnalyzeSource({
   headers: { Authorization: `Bearer ${token}` },
 });
 
-<ReactTransliterate
-  value={text}
-  onChangeText={setText}
-  lang="hi"
-  fetchSuggestions={analyze}
-/>;
+const App = () => {
+  const [text, setText] = useState("");
+
+  return (
+    <ReactTransliterate
+      value={text}
+      onChangeText={setText}
+      lang="hi"
+      fetchSuggestions={analyze}
+      onSuggestionsError={(error) => console.error(error)}
+    />
+  );
+};
 ```
 
-Spelling suggestions come first, ordered by confidence, followed by the codemix
-options, with the typed word removed since the component appends it itself when
-`showCurrentWordAsLastSuggestion` is on.
+The response it expects:
 
-When the endpoint reports the word in `validation.errors`, for example the
-stray matra sequence `ेवेरय`, the source refuses the typed word so it is not
-offered even though `showCurrentWordAsLastSuggestion` is on. Any source can do
-this by answering with an object instead of an array:
-
-```js
-return { suggestions: [], allowCurrentWord: false };
+```json
+{
+  "words": [
+    {
+      "original": "बड",
+      "spell_suggestions": [{ "word": "बड़ा", "confidence": 0.75 }],
+      "codemix_options": ["budd", "bud"],
+      "start": 0,
+      "end": 6
+    }
+  ],
+  "validation": { "valid": true, "errors": [] }
+}
 ```
+
+Spelling suggestions come first, ordered by confidence, then the codemix
+options. The typed word is removed from the list because the component appends
+it itself when `showCurrentWordAsLastSuggestion` is on, and it is left out
+entirely when `validation.errors` names it.
 
 ## Get transliteration suggestions
 

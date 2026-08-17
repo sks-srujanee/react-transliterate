@@ -12,7 +12,7 @@ import Input from "@mui/material/Input";
 // spelling and codemix suggestions for text that is already in the script,
 // used by the custom endpoint demo below
 // const analyzeSource = createAnalyzeSource({
-//   url: "https://labs-prod.srujanee.in/v1/analyze",
+//   url: import.meta.env.VITE_ANALYZE_URL,
 //   use: "both",
 //   minConfidence: 0.6,
 // });

@@ -76,7 +76,7 @@ const byConfidence = (a: { confidence?: number }, b: { confidence?: number }) =>
  *
  * ```ts
  * fetchSuggestions={createAnalyzeSource({
- *   url: "https://labs-prod.srujanee.in/v1/analyze",
+ *   url: process.env.ANALYZE_URL,
  * })}
  * ```
  */
