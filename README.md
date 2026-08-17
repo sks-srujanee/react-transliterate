@@ -241,6 +241,65 @@ are always kept.
 Set `filterInvalidSuggestions={false}` to receive the raw list, and use the
 exported `isValidIndicWord` to run the same check yourself.
 
+This check is structural, not a dictionary: it only knows what the script
+cannot form. A word that is well formed but meaningless still gets through.
+To judge those, hand the list to an endpoint with `validateSuggestions`.
+
+### Validating suggestions against an endpoint
+
+`validateSuggestions` receives the suggestions a source produced and returns
+the ones to keep. It runs after the local check, on the typed word too, and
+carries the same `AbortSignal`.
+
+```jsx
+<ReactTransliterate
+  value={text}
+  onChangeText={setText}
+  lang="hi"
+  validateSuggestions={async (suggestions, { lang, signal }) => {
+    const response = await fetch(SPELLCHECK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ words: suggestions, language: lang }),
+      signal,
+    });
+    const data = await response.json();
+    return suggestions.filter((word) => !data.invalid.includes(word));
+  }}
+/>
+```
+
+`createAnalyzeValidator` does this for an `/analyze` endpoint. The whole list
+goes out as one sentence and every word named in `validation.errors` is
+removed, so `ेवेरय` never reaches the box:
+
+```jsx
+import {
+  ReactTransliterate,
+  createAnalyzeValidator,
+} from "@sarthak1407/react-transliterate";
+
+// created once, outside the component
+const validate = createAnalyzeValidator({
+  url: import.meta.env.VITE_ANALYZE_URL,
+  // keep the suggestions when the endpoint cannot be reached
+  failOpen: true,
+  headers: { Authorization: `Bearer ${token}` },
+});
+
+<ReactTransliterate
+  value={text}
+  onChangeText={setText}
+  lang="hi"
+  validateSuggestions={validate}
+  debounceMs={150}
+/>;
+```
+
+This pairs with the default Google source: Google transliterates, the endpoint
+throws out what it cannot parse. Use `fetchSuggestions` instead when the
+endpoint should produce the suggestions as well.
+
 ### Custom suggestion source
 
 `fetchSuggestions` replaces Google Input Tools with any endpoint. It receives

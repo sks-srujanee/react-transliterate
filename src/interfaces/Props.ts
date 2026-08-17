@@ -1,6 +1,7 @@
 import { Language } from "../types/Language";
 import { TriggerKey } from "../types/TriggerKey";
 import { FetchSuggestions } from "../types/SuggestionSource";
+import { ValidateSuggestions } from "../types/SuggestionValidator";
 
 export interface ReactTransliterateProps extends React.HTMLProps<
   HTMLInputElement | HTMLTextAreaElement
@@ -146,6 +147,13 @@ export interface ReactTransliterateProps extends React.HTMLProps<
    * that opens with a dependent vowel sign. Defaults to `true`
    */
   filterInvalidSuggestions?: boolean;
+
+  /**
+   * Checks the suggestions before they are shown and returns the ones to
+   * keep, for example against a spell checking endpoint. Runs after
+   * `filterInvalidSuggestions`, on the suggestions and the typed word alike
+   */
+  validateSuggestions?: ValidateSuggestions;
 
   /**
    * Wait this many milliseconds after the last keystroke before asking for

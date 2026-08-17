@@ -356,6 +356,35 @@ describe("ReactTransliterate", () => {
     expect(screen.getByText("एवेरय")).toBeInTheDocument();
   });
 
+  it("drops suggestions that the validator rejects", async () => {
+    // a word that is well formed, so only an endpoint can judge it
+    mockSuggestions(["एव्री", "एवेरय"]);
+    const validateSuggestions = vi.fn(async (suggestions: string[]) =>
+      suggestions.filter((suggestion) => suggestion !== "एवेरय"),
+    );
+
+    render(
+      <ControlledTransliterate
+        lang="hi"
+        validateSuggestions={validateSuggestions}
+        onChangeText={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId("rt-input-component"), {
+      target: { value: "every" },
+    });
+
+    await waitFor(() => screen.getByText("एव्री"));
+    expect(screen.queryByText("एवेरय")).not.toBeInTheDocument();
+
+    // the validator sees the list after the local script check
+    expect(validateSuggestions).toHaveBeenCalledWith(
+      ["एव्री", "एवेरय", "every"],
+      expect.objectContaining({ lang: "hi" }),
+    );
+  });
+
   it("keeps invalid suggestions when the filter is off", async () => {
     mockSuggestions(["एव्री", "ेवेरय"]);
 

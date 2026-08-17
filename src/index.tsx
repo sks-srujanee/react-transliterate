@@ -28,6 +28,8 @@ import { injectStyles } from "./util/style-util";
 import { isValidIndicWord } from "./util/indic-util";
 import { FetchSuggestions, SuggestionsResult } from "./types/SuggestionSource";
 import { createAnalyzeSource } from "./sources/analyze-source";
+import { createAnalyzeValidator } from "./sources/analyze-validator";
+import { ValidateSuggestions } from "./types/SuggestionValidator";
 
 injectStyles(css);
 
@@ -65,6 +67,7 @@ export const ReactTransliterate = ({
   activeItemClassName = "",
   fetchSuggestions,
   filterInvalidSuggestions = true,
+  validateSuggestions,
   debounceMs = 0,
   minWordLength = 1,
   onSuggestionsError,
@@ -271,25 +274,43 @@ export const ReactTransliterate = ({
         const keep = (suggestion: string) =>
           !filterInvalidSuggestions || isValidIndicWord(suggestion);
 
-        if (!fetchSuggestions) {
-          applyOptions((result as string[]).filter(keep));
-          return;
-        }
+        const suggestions = Array.isArray(result)
+          ? result
+          : (result as SuggestionsResult).suggestions;
 
-        const suggestions = Array.isArray(result) ? result : result.suggestions;
         // a source can refuse the typed word, for example when a spell
         // checker reports it as invalid
         const allowCurrentWord = Array.isArray(result)
           ? true
-          : (result.allowCurrentWord ?? true);
+          : ((result as SuggestionsResult).allowCurrentWord ?? true);
 
-        const kept = suggestions.filter(keep);
+        const withCurrentWord =
+          fetchSuggestions &&
+          showCurrentWordAsLastSuggestion &&
+          allowCurrentWord
+            ? [...suggestions, lastWord]
+            : suggestions;
 
-        applyOptions(
-          showCurrentWordAsLastSuggestion && allowCurrentWord
-            ? [...kept, lastWord]
-            : kept,
-        );
+        const kept = withCurrentWord.filter(keep);
+
+        // an endpoint gets the last word on what is shown
+        const validated = validateSuggestions
+          ? await validateSuggestions(kept, {
+              lang,
+              numOptions,
+              showCurrentWordAsLastSuggestion,
+              value: valueRef.current,
+              matchStart: matchStartRef.current,
+              matchEnd: matchEndRef.current,
+              signal: controller.signal,
+            })
+          : kept;
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        applyOptions(validated);
       } catch (error) {
         if (controller.signal.aborted) {
           return;
@@ -564,6 +585,7 @@ export type {
   TriggerKeyConfig,
   FetchSuggestions,
   SuggestionsResult,
+  ValidateSuggestions,
 };
 export {
   TriggerKeys,
@@ -572,5 +594,6 @@ export {
   getFullStopCharacter,
   getTransliterateSuggestions,
   createAnalyzeSource,
+  createAnalyzeValidator,
   isValidIndicWord,
 };
