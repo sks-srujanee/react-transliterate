@@ -12,6 +12,23 @@ original component this package is built on. See [credits](#credits).
 <img src="./assets/hi.gif"></img>
 </p>
 
+## What this fork changes
+
+Everything below is on top of the original component. Behaviour that differs
+from upstream is marked, so an upgrade holds no surprises.
+
+| Change                                                                                                                                       | Differs from upstream                     |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| [Trigger keys decide what follows the suggestion](#custom-trigger-keys), through `{ key, insertText }`                                       | yes, enter and tab no longer behave alike |
+| [Full stop inserts the sentence terminator](#custom-trigger-keys), `।` for Hindi and `.` when the english word is picked                     | new key                                   |
+| [Punctuation keys](#custom-trigger-keys) `?` `!` `,` `;` `:` commit the suggestion and add the punctuation with a space                      | new keys                                  |
+| [Escape keeps the typed word](#dismissing-suggestions) and hides suggestions until the next word, even when a parent handler blurs the input | yes, escape used to be undone by the blur |
+| [`validateSuggestions`](#filtering-suggestions) hands the list to an endpoint before it is shown                                             | new prop                                  |
+| [`fetchSuggestions`](#custom-suggestion-source) replaces Google Input Tools, with `debounceMs`, `minWordLength` and request cancellation     | new props                                 |
+| [Styles need no import](#styling), the component injects them                                                                                | yes, `dist/index.css` is optional now     |
+| Highlighted suggestion is `#017BFF` and the box sizes to its longest suggestion                                                              | yes                                       |
+| Node 24, React 19, Vite library build, Vitest, ESLint 9, TypeScript 5.9                                                                      | toolchain only                            |
+
 ## Demo
 
 [See Demo](https://sks-srujanee.github.io/react-transliterate/)
@@ -228,19 +245,45 @@ The suggestion box ships with its own styles, injected automatically. To
 restyle it, pass `suggestionsClassName`, `itemClassName` and
 `activeItemClassName` and write your own rules against those classes.
 
-### Invalid suggestions
+### Filtering suggestions
 
-Transliteration endpoints answer with whatever their model produces, including
-sequences an indic script does not allow. Typing `every` for Hindi returns
-`ेवेरय` among the options, which opens on a dependent vowel sign and cannot be
-typed. Nothing is filtered locally, so pass `validateSuggestions` to decide
-what reaches the box.
+Nothing is filtered by the component. A transliteration endpoint answers with
+whatever its model produces, and for Hindi that includes words the script does
+not allow. Typing `every` returns five options from Google Input Tools:
 
-### Validating suggestions against an endpoint
+```json
+["एव्री", "एवेरी", "एवेर्य", "ेवेरय", "एवेरय"]
+```
 
-`validateSuggestions` receives the suggestions a source produced and returns
-the ones to keep. It runs after the local check, on the typed word too, and
-carries the same `AbortSignal`.
+`ेवेरय` opens on a dependent vowel sign, so it cannot be typed by hand and
+should never be offered. `validateSuggestions` is where that call is made.
+
+#### The contract
+
+```ts
+validateSuggestions?: (
+  suggestions: string[],
+  context: ValidateSuggestionsContext,
+) => Promise<string[]>;
+```
+
+Return the suggestions to keep, in the order they should appear. Throwing, or
+rejecting, sends the error to `onSuggestionsError` and closes the box.
+
+It runs on every list before it is shown, including the typed word when
+`showCurrentWordAsLastSuggestion` puts it there, so a validator can remove that
+too. The context carries:
+
+| Field                             | Use                                                   |
+| --------------------------------- | ----------------------------------------------------- |
+| `lang`                            | language code the component is set to                 |
+| `value`                           | full input value, for validators that need context    |
+| `matchStart`, `matchEnd`          | bounds of the word being replaced                     |
+| `numOptions`                      | how many suggestions the box will show                |
+| `showCurrentWordAsLastSuggestion` | whether the typed word is in the list                 |
+| `signal`                          | aborts when the next keystroke supersedes the request |
+
+Pass `signal` to `fetch` so a stale check cannot overwrite a newer one.
 
 ```jsx
 <ReactTransliterate
@@ -254,15 +297,34 @@ carries the same `AbortSignal`.
       body: JSON.stringify({ words: suggestions, language: lang }),
       signal,
     });
+
     const data = await response.json();
     return suggestions.filter((word) => !data.invalid.includes(word));
   }}
+  onSuggestionsError={(error) => console.error(error)}
+  debounceMs={150}
 />
 ```
 
-`createAnalyzeValidator` does this for an `/analyze` endpoint. The whole list
-goes out as one sentence and every word named in `validation.errors` is
-removed, so `ेवेरय` never reaches the box:
+#### `createAnalyzeValidator`
+
+For an `/analyze` endpoint that takes `{ sentence, language }` and reports bad
+words in `validation.errors`, the validator is ready made. The whole list goes
+out as **one** request, since the errors name the offending words:
+
+```
+POST { "sentence": "एव्री एवेरी एवेर्य ेवेरय एवेरय", "language": "hi" }
+
+{
+  "validation": {
+    "valid": false,
+    "errors": [{ "word_index": 3, "word": "ेवेरय", "error_reason": "invalid_sequence" }]
+  }
+}
+```
+
+Every word named in `errors` is dropped, leaving
+`["एव्री", "एवेरी", "एवेर्य", "एवेरय"]`.
 
 ```jsx
 import {
@@ -270,26 +332,56 @@ import {
   createAnalyzeValidator,
 } from "@sarthak1407/react-transliterate";
 
-// created once, outside the component
+// built once, outside the component, so its identity stays stable
 const validate = createAnalyzeValidator({
   url: import.meta.env.VITE_ANALYZE_URL,
-  // keep the suggestions when the endpoint cannot be reached
   failOpen: true,
   headers: { Authorization: `Bearer ${token}` },
 });
 
-<ReactTransliterate
-  value={text}
-  onChangeText={setText}
-  lang="hi"
-  validateSuggestions={validate}
-  debounceMs={150}
-/>;
+const App = () => {
+  const [text, setText] = useState("");
+
+  return (
+    <ReactTransliterate
+      value={text}
+      onChangeText={setText}
+      lang="hi"
+      validateSuggestions={validate}
+      debounceMs={150}
+    />
+  );
+};
 ```
 
-This pairs with the default Google source: Google transliterates, the endpoint
+| Option     | Default | Meaning                                            |
+| ---------- | ------- | -------------------------------------------------- |
+| `url`      |         | endpoint that accepts `{ sentence, language }`     |
+| `failOpen` | `true`  | what to do when the request fails, see below       |
+| `headers`  | `{}`    | extra headers, for example an authorization header |
+
+**`failOpen`** decides the behaviour when the endpoint is unreachable, answers
+a non 2xx status, or times out:
+
+- `true` shows the suggestions unvalidated. The box keeps working during an
+  outage, at the cost of letting a bad word through
+- `false` rethrows. `onSuggestionsError` fires and the box closes, so nothing
+  unvalidated can ever be inserted, at the cost of no suggestions at all while
+  the endpoint is down
+
+An aborted request is never treated as a failure, it just means a newer
+keystroke took over.
+
+#### Cost
+
+The validator adds a request per lookup, on top of the one that produced the
+suggestions. Set `debounceMs` so that only pauses in typing cost a round trip,
+and `minWordLength` so single letters do not.
+
+This pairs with the default Google source: Google transliterates, your endpoint
 throws out what it cannot parse. Use `fetchSuggestions` instead when the
-endpoint should produce the suggestions as well.
+endpoint should produce the suggestions as well, and return
+`{ suggestions, allowCurrentWord: false }` from it to keep the typed word out.
 
 ### Custom suggestion source
 
@@ -454,6 +546,14 @@ For a full example, take a look at the `example` folder
 | dismissSuggestionsOnEscape       |           | `true`                                                                        | `Escape` keeps the typed english word and hides suggestions until the next word                                                      |
 | insertCurrentSelectionOnBlur     |           | `true`                                                                        | Should the current selection be inserted when `blur` event occurs                                                                    |
 | showCurrentWordAsLastSuggestion  |           | `true`                                                                        | Show current input as the last option in the suggestion box                                                                          |
+| suggestionsClassName             |           | empty string                                                                  | Classname passed to the suggestion box `<ul>`                                                                                        |
+| itemClassName                    |           | empty string                                                                  | Classname passed to every suggestion `<li>`                                                                                          |
+| activeItemClassName              |           | empty string                                                                  | Classname passed to the highlighted suggestion `<li>`, on top of `itemClassName`                                                     |
+| fetchSuggestions                 |           | Google Input Tools                                                            | Where suggestions come from. `(word, context) => Promise<string[] \| SuggestionsResult>`                                             |
+| validateSuggestions              |           |                                                                               | Checks the suggestions before they are shown. `(suggestions, context) => Promise<string[]>`                                          |
+| debounceMs                       |           | 0                                                                             | Wait this long after the last keystroke before asking for suggestions                                                                |
+| minWordLength                    |           | 1                                                                             | Do not ask for suggestions until the word is at least this long                                                                      |
+| onSuggestionsError               |           |                                                                               | Called when a source or validator rejects. Aborted requests are not reported                                                         |
 
 ### Supported Languages
 
@@ -552,6 +652,9 @@ the original:
   with class hooks for the suggestion box and its items
 - **Modern toolchain.** Node 24, React 19, Vite library build, Vitest, ESLint 9
   flat config, TypeScript 5.9
+
+See [what this fork changes](#what-this-fork-changes) for the same list with
+links, and which entries change behaviour you may be relying on.
 
 ## License
 
