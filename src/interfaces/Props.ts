@@ -143,15 +143,9 @@ export interface ReactTransliterateProps extends React.HTMLProps<
   fetchSuggestions?: FetchSuggestions;
 
   /**
-   * Drop suggestions that are not typable in an indic script, such as a word
-   * that opens with a dependent vowel sign. Defaults to `true`
-   */
-  filterInvalidSuggestions?: boolean;
-
-  /**
    * Checks the suggestions before they are shown and returns the ones to
-   * keep, for example against a spell checking endpoint. Runs after
-   * `filterInvalidSuggestions`, on the suggestions and the typed word alike
+   * keep, for example against a spell checking endpoint. Sees the typed word
+   * as well when it is offered as the last suggestion
    */
   validateSuggestions?: ValidateSuggestions;
 

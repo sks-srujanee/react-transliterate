@@ -230,20 +230,11 @@ restyle it, pass `suggestionsClassName`, `itemClassName` and
 
 ### Invalid suggestions
 
-Transliteration endpoints sometimes answer with sequences an indic script does
-not allow. Typing `every` for Hindi returns `ेवेरय` among the options, which
-opens on a dependent vowel sign and cannot be typed. Suggestions like that are
-dropped before they reach the box: a word that starts with a combining mark,
-carries two dependent vowel signs in a row, or places one straight after a
-virama. Words with no indic characters, such as the english word being typed,
-are always kept.
-
-Set `filterInvalidSuggestions={false}` to receive the raw list, and use the
-exported `isValidIndicWord` to run the same check yourself.
-
-This check is structural, not a dictionary: it only knows what the script
-cannot form. A word that is well formed but meaningless still gets through.
-To judge those, hand the list to an endpoint with `validateSuggestions`.
+Transliteration endpoints answer with whatever their model produces, including
+sequences an indic script does not allow. Typing `every` for Hindi returns
+`ेवेरय` among the options, which opens on a dependent vowel sign and cannot be
+typed. Nothing is filtered locally, so pass `validateSuggestions` to decide
+what reaches the box.
 
 ### Validating suggestions against an endpoint
 
@@ -549,8 +540,10 @@ the original:
 - **Escape that sticks.** Escape keeps the typed english word and hides
   suggestions until the next word starts, and can no longer be undone by a
   parent handler that blurs the input in the same event dispatch
-- **Invalid suggestion filtering.** Sequences an indic script does not allow,
-  such as `ेवेरय` for "every", are dropped before they reach the box
+- **Suggestion validation.** `validateSuggestions` hands the list to an
+  endpoint before it is shown, so words the endpoint rejects, such as `ेवेरय`
+  for "every", never reach the box. `createAnalyzeValidator` implements it for
+  an `/analyze` endpoint
 - **Pluggable suggestion sources.** `fetchSuggestions` replaces the Google
   endpoint with any api, with `debounceMs`, `minWordLength`,
   `onSuggestionsError` and request cancellation. `createAnalyzeSource` adapts

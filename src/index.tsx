@@ -25,7 +25,6 @@ import {
 import { TriggerKey, TriggerKeyConfig } from "./types/TriggerKey";
 import { getTransliterateSuggestions } from "./util/suggestions-util";
 import { injectStyles } from "./util/style-util";
-import { isValidIndicWord } from "./util/indic-util";
 import { FetchSuggestions, SuggestionsResult } from "./types/SuggestionSource";
 import { createAnalyzeSource } from "./sources/analyze-source";
 import { createAnalyzeValidator } from "./sources/analyze-validator";
@@ -66,7 +65,6 @@ export const ReactTransliterate = ({
   itemClassName = "",
   activeItemClassName = "",
   fetchSuggestions,
-  filterInvalidSuggestions = true,
   validateSuggestions,
   debounceMs = 0,
   minWordLength = 1,
@@ -271,9 +269,6 @@ export const ReactTransliterate = ({
           return;
         }
 
-        const keep = (suggestion: string) =>
-          !filterInvalidSuggestions || isValidIndicWord(suggestion);
-
         const suggestions = Array.isArray(result)
           ? result
           : (result as SuggestionsResult).suggestions;
@@ -291,11 +286,9 @@ export const ReactTransliterate = ({
             ? [...suggestions, lastWord]
             : suggestions;
 
-        const kept = withCurrentWord.filter(keep);
-
         // an endpoint gets the last word on what is shown
         const validated = validateSuggestions
-          ? await validateSuggestions(kept, {
+          ? await validateSuggestions(withCurrentWord, {
               lang,
               numOptions,
               showCurrentWordAsLastSuggestion,
@@ -304,7 +297,7 @@ export const ReactTransliterate = ({
               matchEnd: matchEndRef.current,
               signal: controller.signal,
             })
-          : kept;
+          : withCurrentWord;
 
         if (controller.signal.aborted) {
           return;
@@ -595,5 +588,4 @@ export {
   getTransliterateSuggestions,
   createAnalyzeSource,
   createAnalyzeValidator,
-  isValidIndicWord,
 };

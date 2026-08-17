@@ -341,21 +341,6 @@ describe("ReactTransliterate", () => {
     await waitFor(() => expect(fetchSuggestions).toHaveBeenCalledTimes(1));
   });
 
-  it("drops suggestions that are not typable in the script", async () => {
-    // what google answers for "every": one option opens on a matra
-    mockSuggestions(["एव्री", "एवेरी", "ेवेरय", "एवेरय"]);
-
-    render(<ControlledTransliterate lang="hi" onChangeText={vi.fn()} />);
-
-    fireEvent.change(screen.getByTestId("rt-input-component"), {
-      target: { value: "every" },
-    });
-
-    await waitFor(() => screen.getByText("एव्री"));
-    expect(screen.queryByText("ेवेरय")).not.toBeInTheDocument();
-    expect(screen.getByText("एवेरय")).toBeInTheDocument();
-  });
-
   it("drops suggestions that the validator rejects", async () => {
     // a word that is well formed, so only an endpoint can judge it
     mockSuggestions(["एव्री", "एवेरय"]);
@@ -383,24 +368,6 @@ describe("ReactTransliterate", () => {
       ["एव्री", "एवेरय", "every"],
       expect.objectContaining({ lang: "hi" }),
     );
-  });
-
-  it("keeps invalid suggestions when the filter is off", async () => {
-    mockSuggestions(["एव्री", "ेवेरय"]);
-
-    render(
-      <ControlledTransliterate
-        lang="hi"
-        filterInvalidSuggestions={false}
-        onChangeText={vi.fn()}
-      />,
-    );
-
-    fireEvent.change(screen.getByTestId("rt-input-component"), {
-      target: { value: "every" },
-    });
-
-    await waitFor(() => screen.getByText("ेवेरय"));
   });
 
   it("renders suggestions list", async () => {
