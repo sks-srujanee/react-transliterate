@@ -1,6 +1,7 @@
 export type Language =
   | "am"
   | "ar"
+  | "as"
   | "bn"
   | "be"
   | "bg"

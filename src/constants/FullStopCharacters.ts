@@ -6,16 +6,13 @@ import { Language } from "../types/Language";
  */
 export const FULL_STOP_CHARACTERS: Partial<Record<Language, string>> = {
   // purnaviram / danda
+  as: "।",
   bn: "।",
-  gu: "।",
   hi: "।",
-  mr: "।",
   ne: "।",
   or: "।",
   pa: "।",
   sa: "।",
-  // arabic full stop
-  ur: "۔",
   // ideographic full stop
   ja: "。",
   zh: "。",

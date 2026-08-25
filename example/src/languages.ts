@@ -1,6 +1,7 @@
 export const languages = [
   { label: "Amharic", value: "am" },
   { label: "Arabic", value: "ar" },
+  { label: "Assamese", value: "as" },
   { label: "Bangla", value: "bn" },
   { label: "Belarusian", value: "be" },
   { label: "Bulgarian", value: "bg" },
