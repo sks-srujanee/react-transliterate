@@ -370,6 +370,60 @@ describe("ReactTransliterate", () => {
     );
   });
 
+  it("writes the assamese urdha coma into the suggestions", async () => {
+    // assamese writes the urdha coma as an apostrophe, so `h'l` is one word,
+    // and google answers with the plain U+0027 that has to be swapped
+    const fetchSuggestions = vi.fn(async () => [
+      "\u09B9'\u09B2",
+      "\u09B9'\u09B2\u09BE",
+    ]);
+    const mockOnChangeText = vi.fn();
+
+    render(
+      <ControlledTransliterate
+        lang="as"
+        fetchSuggestions={fetchSuggestions}
+        onChangeText={mockOnChangeText}
+      />,
+    );
+
+    const input = screen.getByTestId("rt-input-component");
+    fireEvent.change(input, { target: { value: "h'l" } });
+
+    await waitFor(() => screen.getByText("\u09B9\u02BC\u09B2"));
+
+    // the apostrophe neither split the word nor committed the selection
+    expect(fetchSuggestions).toHaveBeenCalledWith(
+      "h'l",
+      expect.objectContaining({ lang: "as", matchStart: 0 }),
+    );
+
+    // the typed word keeps the typewriter apostrophe
+    expect(screen.getByText("h'l")).toBeInTheDocument();
+
+    fireEvent.keyDown(input, { key: " " });
+    expect(mockOnChangeText).toHaveBeenLastCalledWith("\u09B9\u02BC\u09B2 ");
+  });
+
+  it("keeps the plain apostrophe for other languages", async () => {
+    const fetchSuggestions = vi.fn(async () => ["\u09B9'\u09B2"]);
+    const mockOnChangeText = vi.fn();
+
+    render(
+      <ControlledTransliterate
+        lang="bn"
+        fetchSuggestions={fetchSuggestions}
+        onChangeText={mockOnChangeText}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId("rt-input-component"), {
+      target: { value: "h'l" },
+    });
+
+    await waitFor(() => screen.getByText("\u09B9'\u09B2"));
+  });
+
   it("renders suggestions list", async () => {
     mockSuggestions(["hi", "hey", "hello"]);
     const mockOnChangeText = vi.fn();

@@ -28,6 +28,11 @@ import { injectStyles } from "./util/style-util";
 import { FetchSuggestions, SuggestionsResult } from "./types/SuggestionSource";
 import { createAnalyzeSource } from "./sources/analyze-source";
 import { createAnalyzeValidator } from "./sources/analyze-validator";
+import {
+  APOSTROPHE_CHARACTERS,
+  getApostropheCharacter,
+} from "./constants/ApostropheCharacters";
+import { applyApostropheCharacter } from "./util/apostrophe-util";
 import { ValidateSuggestions } from "./types/SuggestionValidator";
 
 injectStyles(css);
@@ -66,6 +71,7 @@ export const ReactTransliterate = ({
   activeItemClassName = "",
   fetchSuggestions,
   validateSuggestions,
+  apostropheCharacter,
   debounceMs = 0,
   minWordLength = 1,
   onSuggestionsError,
@@ -140,6 +146,10 @@ export const ReactTransliterate = ({
     matchStartRef.current = start;
     matchEndRef.current = end;
   };
+
+  // assamese and friends write the apostrophe as a letter of their own
+  // script, which the transliteration endpoints do not return
+  const scriptApostrophe = apostropheCharacter ?? getApostropheCharacter(lang);
 
   // the english word is kept as is, so it ends with a full stop even when
   // the language uses a purnaviram
@@ -303,7 +313,11 @@ export const ReactTransliterate = ({
           return;
         }
 
-        applyOptions(validated);
+        applyOptions(
+          validated.map((suggestion) =>
+            applyApostropheCharacter(suggestion, scriptApostrophe),
+          ),
+        );
       } catch (error) {
         if (controller.signal.aborted) {
           return;
@@ -585,6 +599,8 @@ export {
   PUNCTUATION_TRIGGER_KEYS,
   DEFAULT_TRIGGER_KEYS,
   getFullStopCharacter,
+  getApostropheCharacter,
+  APOSTROPHE_CHARACTERS,
   getTransliterateSuggestions,
   createAnalyzeSource,
   createAnalyzeValidator,

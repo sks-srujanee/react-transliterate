@@ -23,6 +23,7 @@ from upstream is marked, so an upgrade holds no surprises.
 | [Full stop inserts the sentence terminator](#custom-trigger-keys), `।` for Hindi and `.` when the english word is picked                     | new key                                   |
 | [Punctuation keys](#custom-trigger-keys) `?` `!` `,` `;` `:` commit the suggestion and add the punctuation with a space                      | new keys                                  |
 | [Escape keeps the typed word](#dismissing-suggestions) and hides suggestions until the next word, even when a parent handler blurs the input | yes, escape used to be undone by the blur |
+| [Assamese suggestions take the urdha coma](#the-apostrophe-in-assamese) `ʼ` U+02BC instead of the plain apostrophe google returns            | new behaviour                             |
 | [`validateSuggestions`](#filtering-suggestions) hands the list to an endpoint before it is shown                                             | new prop                                  |
 | [`fetchSuggestions`](#custom-suggestion-source) replaces Google Input Tools, with `debounceMs`, `minWordLength` and request cancellation     | new props                                 |
 | [Styles need no import](#styling), the component injects them                                                                                | yes, `dist/index.css` is optional now     |
@@ -244,6 +245,25 @@ keystroke instead.
 The suggestion box ships with its own styles, injected automatically. To
 restyle it, pass `suggestionsClassName`, `itemClassName` and
 `activeItemClassName` and write your own rules against those classes.
+
+### The apostrophe in Assamese
+
+Assamese writes the urdha coma, which is a letter rather than punctuation, so
+it is `ʼ` U+02BC. Google Input Tools answers with the typewriter apostrophe
+`'` U+0027 instead, so suggestions are rewritten before they are shown:
+
+```
+google:    হ'ল   U+09B9 U+0027 U+09B2
+inserted:  হʼল   U+09B9 U+02BC U+09B2
+```
+
+Only words already in the target script are touched, so the english word being
+typed keeps its plain apostrophe and `h'l` still reaches the endpoint intact.
+Every other language keeps U+0027.
+
+`apostropheCharacter` overrides the character, and passing `"'"` keeps whatever
+the endpoint returned. `getApostropheCharacter(lang)` and
+`APOSTROPHE_CHARACTERS` are exported for the same lookup.
 
 ### Filtering suggestions
 
@@ -551,6 +571,7 @@ For a full example, take a look at the `example` folder
 | activeItemClassName              |           | empty string                                                                  | Classname passed to the highlighted suggestion `<li>`, on top of `itemClassName`                                                     |
 | fetchSuggestions                 |           | Google Input Tools                                                            | Where suggestions come from. `(word, context) => Promise<string[] \| SuggestionsResult>`                                             |
 | validateSuggestions              |           |                                                                               | Checks the suggestions before they are shown. `(suggestions, context) => Promise<string[]>`                                          |
+| apostropheCharacter              |           | `ʼ` for `as`, `'` elsewhere                                                   | Apostrophe written into a suggestion once it is in the target script                                                                 |
 | debounceMs                       |           | 0                                                                             | Wait this long after the last keystroke before asking for suggestions                                                                |
 | minWordLength                    |           | 1                                                                             | Do not ask for suggestions until the word is at least this long                                                                      |
 | onSuggestionsError               |           |                                                                               | Called when a source or validator rejects. Aborted requests are not reported                                                         |

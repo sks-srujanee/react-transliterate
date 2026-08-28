@@ -150,6 +150,14 @@ export interface ReactTransliterateProps extends React.HTMLProps<
   validateSuggestions?: ValidateSuggestions;
 
   /**
+   * Apostrophe used inside a suggestion once it is written in the target
+   * script. Defaults to the one the language uses, `ʼ` U+02BC for Assamese,
+   * and to the plain `'` everywhere else. Pass `"'"` to keep whatever the
+   * endpoint returned
+   */
+  apostropheCharacter?: string;
+
+  /**
    * Wait this many milliseconds after the last keystroke before asking for
    * suggestions. Defaults to 0, which requests on every keystroke
    */
