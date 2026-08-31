@@ -21,15 +21,15 @@
   "scripts": {
     "start": "vite build --watch",
     "build": "vite build && tsc -p tsconfig.build.json",
-    "prepare": "yarn build",
-    "test": "yarn test:unit && yarn test:lint && yarn test:build",
-    "test:build": "yarn build",
+    "prepare": "npm run build",
+    "test": "npm run test:unit && npm run test:lint && npm run test:build",
+    "test:build": "npm run build",
     "test:lint": "eslint .",
     "test:unit": "vitest run",
     "test:watch": "vitest",
     "predeploy": "cd example && yarn install && yarn run build",
     "deploy": "gh-pages -d example/dist",
-    "dev": "yarn start & cd example && yarn dev"
+    "dev": "npm run start & cd example && yarn dev"
   },
   "peerDependencies": {
     "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0",
