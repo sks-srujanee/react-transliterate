@@ -2,6 +2,11 @@ import { Language } from "../types/Language";
 import { TriggerKey } from "../types/TriggerKey";
 import { FetchSuggestions } from "../types/SuggestionSource";
 import { ValidateSuggestions } from "../types/SuggestionValidator";
+import { SuggestionTrigger } from "../types/SuggestionTrigger";
+import {
+  SuggestionSelection,
+  SuggestionsTiming,
+} from "../types/SuggestionEvents";
 
 export interface ReactTransliterateProps extends React.HTMLProps<
   HTMLInputElement | HTMLTextAreaElement
@@ -41,8 +46,15 @@ export interface ReactTransliterateProps extends React.HTMLProps<
    */
   activeItemStyles?: React.CSSProperties;
 
+  /** Highlight background color. activeItemStyles takes precedence. */
+  highlightColor?: string;
+
+  /** Local prefix-filtered lists that replace transliteration for matching words. */
+  suggestionTriggers?: readonly SuggestionTrigger[];
+
   /**
-   * Maximum number of suggestions to show in helper
+   * Maximum number of suggestions to show in helper. Defaults to 7,
+   * including the typed word when it is offered.
    */
   maxOptions?: number;
 
@@ -174,4 +186,13 @@ export interface ReactTransliterateProps extends React.HTMLProps<
    * reported
    */
   onSuggestionsError?: (error: unknown) => void;
+
+  /** Remember choices in localStorage. Defaults to true; false disables reads and writes. */
+  rememberSelections?: boolean;
+
+  /** Called after a suggestion is accepted through the keyboard, mouse, or blur. */
+  onSuggestionSelect?: (selection: SuggestionSelection) => void;
+
+  /** Reports fetch, validation, and total duration for each settled request. */
+  onSuggestionsTiming?: (timing: SuggestionsTiming) => void;
 }

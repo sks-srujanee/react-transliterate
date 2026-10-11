@@ -21,6 +21,27 @@ const validateSuggestions = analyzeUrl
   ? createAnalyzeValidator({ url: analyzeUrl })
   : undefined;
 
+const suggestionTriggers = [
+  {
+    trigger: "[",
+    suggestions: [
+      "[human_voice]",
+      "[overlap]",
+      "[non_human_noise]",
+      "[silence]",
+      "[bgspeech]",
+      "[music]",
+      "[noise]",
+      "[sarthak]",
+      "[prerecorded_speech]",
+      "[profanity]",
+      "[beep]",
+    ],
+  },
+  { trigger: "#", suggestions: ["#ah", "#um", "#hm", "#uh", "#er", "#oh"] },
+  { trigger: "<", suggestions: ["<non_intended_lang>"] },
+];
+
 const App = () => {
   const [text, setText] = useState("");
 
@@ -52,6 +73,7 @@ const App = () => {
         }}
         lang={lang}
         validateSuggestions={validateSuggestions}
+        suggestionTriggers={suggestionTriggers}
         placeholder="Start typing here..."
         id="react-transliterate-input"
       />
@@ -67,6 +89,7 @@ const App = () => {
         }}
         lang={lang}
         validateSuggestions={validateSuggestions}
+        suggestionTriggers={suggestionTriggers}
         placeholder="Start typing here..."
         id="react-transliterate-textarea"
       />
@@ -90,6 +113,7 @@ const App = () => {
         }}
         lang={lang}
         validateSuggestions={validateSuggestions}
+        suggestionTriggers={suggestionTriggers}
         placeholder="Start typing here..."
         id="react-transliterate-material-ui-input"
       />

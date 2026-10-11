@@ -1,7 +1,22 @@
 import * as React from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  act,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from "@testing-library/react";
 import { ReactTransliterate, ReactTransliterateProps } from "./index";
+import getCaretCoordinates from "textarea-caret";
+
+vi.mock("textarea-caret", () => ({
+  default: vi.fn((_input, position) => ({
+    left: position * 8,
+    top: 0,
+    height: 20,
+  })),
+}));
 
 /**
  * Stub the Google Input Tools call with a fixed list of suggestions
@@ -11,6 +26,7 @@ const mockSuggestions = (suggestions: string[]) => {
     const word = new URL(url).searchParams.get("text");
 
     return {
+      ok: true,
       json: async () => ["SUCCESS", [[word, suggestions]]],
     } as Response;
   });
@@ -20,7 +36,15 @@ const mockSuggestions = (suggestions: string[]) => {
   return fetchMock;
 };
 
+let testClock = Date.now();
+beforeEach(() => {
+  // Expire shared Google results between tests; each case controls its own fetch.
+  vi.spyOn(Date, "now").mockReturnValue((testClock += 300_001));
+});
+
 afterEach(() => {
+  localStorage.clear();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -49,6 +73,326 @@ const ControlledTransliterate = ({
 };
 
 describe("ReactTransliterate", () => {
+  it("anchors the box to the word instead of moving it on every keystroke", async () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      width: 300,
+      height: 40,
+      top: 0,
+      left: 0,
+      right: 300,
+      bottom: 40,
+    } as DOMRect);
+    const fetchSuggestions = vi
+      .fn()
+      .mockResolvedValueOnce(["पहला"])
+      .mockImplementationOnce(() => new Promise(() => {}));
+    render(
+      <ControlledTransliterate
+        fetchSuggestions={fetchSuggestions}
+        onChangeText={vi.fn()}
+      />,
+    );
+    const input = screen.getByTestId("rt-input-component");
+    fireEvent.change(input, { target: { value: "one a" } });
+    await screen.findByText("पहला");
+    const box = screen.getByTestId("rt-suggestions-list");
+    const left = box.style.left;
+    fireEvent.change(input, { target: { value: "one ab" } });
+    expect(getCaretCoordinates).toHaveBeenLastCalledWith(input, 4);
+    expect(box.style.left).toBe(left);
+    expect(box.style.opacity).toBe("");
+    expect(box).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("retains width while allowing shorter results to shrink in height", async () => {
+    let size = { width: 240, height: 280 };
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: HTMLElement) {
+        return {
+          top: 0,
+          left: 0,
+          right: 300,
+          bottom: 40,
+          ...(this.tagName === "UL" ? size : { width: 300, height: 40 }),
+        } as DOMRect;
+      },
+    );
+    const fetchSuggestions = vi
+      .fn()
+      .mockResolvedValueOnce(["पहला"])
+      .mockResolvedValueOnce(["दूसरा"])
+      .mockResolvedValueOnce(["तीसरा"]);
+    render(
+      <ControlledTransliterate
+        fetchSuggestions={fetchSuggestions}
+        onChangeText={vi.fn()}
+      />,
+    );
+    const input = screen.getByTestId("rt-input-component");
+    fireEvent.change(input, { target: { value: "a" } });
+    await screen.findByText("पहला");
+    const box = screen.getByTestId("rt-suggestions-list");
+    expect(box.style.minWidth).toBe("240px");
+    expect(box.style.minHeight).toBe("");
+    size = { width: 120, height: 80 };
+    fireEvent.change(input, { target: { value: "ab" } });
+    await screen.findByText("दूसरा");
+    expect(box.style.minWidth).toBe("240px");
+    expect(box.style.minHeight).toBe("");
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.change(input, { target: { value: "c" } });
+    await screen.findByText("तीसरा");
+    expect(screen.getByTestId("rt-suggestions-list").style.minWidth).toBe(
+      "120px",
+    );
+    expect(screen.getByTestId("rt-suggestions-list").style.minHeight).toBe("");
+  });
+
+  it.each(["mouse", "keyboard"])(
+    "remembers the latest %s selection across component mounts",
+    async (method) => {
+      const fetchSuggestions = async () => ["पहला", "दूसरा", "तीसरा"];
+      const first = render(
+        <ControlledTransliterate
+          fetchSuggestions={fetchSuggestions}
+          onChangeText={vi.fn()}
+        />,
+      );
+      const input = screen.getByTestId("rt-input-component");
+      fireEvent.change(input, { target: { value: "word" } });
+      await screen.findByText("दूसरा");
+      if (method === "mouse") fireEvent.click(screen.getByText("दूसरा"));
+      else {
+        fireEvent.keyDown(input, { key: "ArrowDown" });
+        fireEvent.keyDown(input, { key: "Enter" });
+      }
+      first.unmount();
+
+      const second = render(
+        <ControlledTransliterate
+          fetchSuggestions={fetchSuggestions}
+          onChangeText={vi.fn()}
+        />,
+      );
+      fireEvent.change(screen.getByTestId("rt-input-component"), {
+        target: { value: "word" },
+      });
+      await screen.findByText("दूसरा");
+      expect(screen.getAllByRole("option")[0]).toHaveTextContent("दूसरा");
+      fireEvent.click(screen.getByText("तीसरा"));
+      second.unmount();
+
+      render(
+        <ControlledTransliterate
+          fetchSuggestions={fetchSuggestions}
+          onChangeText={vi.fn()}
+        />,
+      );
+      fireEvent.change(screen.getByTestId("rt-input-component"), {
+        target: { value: "word" },
+      });
+      await screen.findByText("तीसरा");
+      expect(screen.getAllByRole("option")[0]).toHaveTextContent("तीसरा");
+    },
+  );
+
+  it("does not restore a remembered choice rejected by validation", async () => {
+    const fetchSuggestions = async () => ["पहला", "दूसरा"];
+    const first = render(
+      <ControlledTransliterate
+        fetchSuggestions={fetchSuggestions}
+        onChangeText={vi.fn()}
+      />,
+    );
+    fireEvent.change(screen.getByTestId("rt-input-component"), {
+      target: { value: "word" },
+    });
+    fireEvent.click(await screen.findByText("दूसरा"));
+    first.unmount();
+    render(
+      <ControlledTransliterate
+        fetchSuggestions={fetchSuggestions}
+        validateSuggestions={async (list) =>
+          list.filter((item) => item !== "दूसरा")
+        }
+        onChangeText={vi.fn()}
+      />,
+    );
+    fireEvent.change(screen.getByTestId("rt-input-component"), {
+      target: { value: "word" },
+    });
+    await screen.findByText("पहला");
+    expect(screen.queryByText("दूसरा")).not.toBeInTheDocument();
+  });
+
+  it("requests six Google candidates plus the typed word by default", async () => {
+    const fetchMock = mockSuggestions([
+      "one",
+      "two",
+      "three",
+      "four",
+      "five",
+      "six",
+    ]);
+    render(<ControlledTransliterate onChangeText={vi.fn()} />);
+    fireEvent.change(screen.getByTestId("rt-input-component"), {
+      target: { value: "word" },
+    });
+    await screen.findByText("six");
+    expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get("num")).toBe(
+      "6",
+    );
+    expect(screen.getAllByRole("option")).toHaveLength(7);
+  });
+
+  it("updates the existing box in place and resets its selection when results arrive", async () => {
+    let resolve!: (list: string[]) => void;
+    const fetchSuggestions = vi
+      .fn()
+      .mockResolvedValueOnce(["पहला", "दूसरा"])
+      .mockImplementationOnce(
+        () =>
+          new Promise<string[]>((done) => {
+            resolve = done;
+          }),
+      );
+    const onChangeText = vi.fn();
+    render(
+      <ControlledTransliterate
+        fetchSuggestions={fetchSuggestions}
+        onChangeText={onChangeText}
+      />,
+    );
+    const input = screen.getByTestId("rt-input-component");
+    fireEvent.change(input, { target: { value: "a" } });
+    await screen.findByText("पहला");
+    const box = screen.getByTestId("rt-suggestions-list");
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    fireEvent.change(input, { target: { value: "ab" } });
+    expect(screen.getByTestId("rt-suggestions-list")).toBe(box);
+    await act(async () => {
+      resolve(["नया"]);
+    });
+    expect(screen.getByTestId("rt-suggestions-list")).toBe(box);
+    expect(box).toHaveAttribute("aria-busy", "false");
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onChangeText).toHaveBeenLastCalledWith("नया ");
+  });
+
+  it("does not commit suggestions for an earlier spelling while loading", async () => {
+    const fetchSuggestions = vi
+      .fn()
+      .mockResolvedValueOnce(["पुराना"])
+      .mockImplementationOnce(() => new Promise(() => {}));
+    const onChangeText = vi.fn();
+    render(
+      <ControlledTransliterate
+        fetchSuggestions={fetchSuggestions}
+        onChangeText={onChangeText}
+      />,
+    );
+    const input = screen.getByTestId("rt-input-component");
+    fireEvent.change(input, { target: { value: "a" } });
+    await screen.findByText("पुराना");
+    fireEvent.change(input, { target: { value: "ab" } });
+    expect(screen.getByTestId("rt-suggestions-list")).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+    fireEvent.click(screen.getByText("पुराना"));
+    expect(onChangeText).toHaveBeenLastCalledWith("ab");
+    fireEvent.keyDown(input, { key: " " });
+    expect(onChangeText).toHaveBeenLastCalledWith("ab");
+  });
+
+  it.each(["delete", "escape", "blur"])(
+    "ignores a late response after %s",
+    async (action) => {
+      let resolve!: (suggestions: string[]) => void;
+      const fetchSuggestions = vi.fn(
+        () =>
+          new Promise<string[]>((done) => {
+            resolve = done;
+          }),
+      );
+      render(
+        <ControlledTransliterate
+          fetchSuggestions={fetchSuggestions}
+          onChangeText={vi.fn()}
+        />,
+      );
+      const input = screen.getByTestId("rt-input-component");
+      fireEvent.change(input, { target: { value: "a" } });
+      if (action === "delete")
+        fireEvent.change(input, { target: { value: "" } });
+      if (action === "escape") fireEvent.keyDown(input, { key: "Escape" });
+      if (action === "blur") fireEvent.blur(input);
+      expect(fetchSuggestions.mock.calls[0]).toBeDefined();
+      await act(async () => {
+        resolve(["पुराना"]);
+      });
+      expect(
+        screen.queryByTestId("rt-suggestions-list"),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("inserts the displayed suggestion when the source contains duplicates", async () => {
+    const onChangeText = vi.fn();
+    render(
+      <ControlledTransliterate
+        fetchSuggestions={async () => ["पहला", "पहला", "दूसरा"]}
+        onChangeText={onChangeText}
+      />,
+    );
+    fireEvent.change(screen.getByTestId("rt-input-component"), {
+      target: { value: "a" },
+    });
+    fireEvent.click(await screen.findByText("दूसरा"));
+    expect(onChangeText).toHaveBeenLastCalledWith("दूसरा ");
+  });
+
+  it.each(["delete", "escape", "blur"])(
+    "cancels a debounced request after %s",
+    (action) => {
+      vi.useFakeTimers();
+      try {
+        const fetchSuggestions = vi.fn(async () => ["पुराना"]);
+        render(
+          <ControlledTransliterate
+            debounceMs={100}
+            fetchSuggestions={fetchSuggestions}
+            onChangeText={vi.fn()}
+          />,
+        );
+        const input = screen.getByTestId("rt-input-component");
+        fireEvent.change(input, { target: { value: "a" } });
+        if (action === "delete")
+          fireEvent.change(input, { target: { value: "" } });
+        if (action === "escape") fireEvent.keyDown(input, { key: "Escape" });
+        if (action === "blur") fireEvent.blur(input);
+        act(() => vi.advanceTimersByTime(100));
+        expect(fetchSuggestions).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it("aborts the Google request when the spelling changes", () => {
+    const fetchMock = vi.fn(() => new Promise(() => {}));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ControlledTransliterate onChangeText={vi.fn()} />);
+    const input = screen.getByTestId("rt-input-component");
+    fireEvent.change(input, { target: { value: "a" } });
+    const init = (
+      fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    )[1];
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
+    fireEvent.change(input, { target: { value: "ab" } });
+    expect(init.signal?.aborted).toBe(true);
+  });
+
   it("is truthy", () => {
     expect(ReactTransliterate).toBeTruthy();
   });

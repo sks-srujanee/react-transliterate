@@ -240,6 +240,141 @@ typed. Suggestions stay hidden for that word until a new word is started. Set
 `dismissSuggestionsOnEscape={false}` to have the box reopen on the next
 keystroke instead.
 
+### Highlight color and local selection lists
+
+Use `highlightColor` to change the selected row's background. For text color or
+other styling, use `activeItemStyles`; those styles override `highlightColor`.
+
+`suggestionTriggers` opens an instant local selection list instead of
+transliteration when the current word starts with a configured prefix:
+
+```tsx
+<ReactTransliterate
+  value={text}
+  onChangeText={setText}
+  highlightColor="#5454c7"
+  suggestionTriggers={[
+    {
+      trigger: "[",
+      suggestions: ["[noise]", "[music]", "[silence]", "[overlap]"],
+    },
+    {
+      trigger: "#",
+      suggestions: ["#ah", "#um", "#hm", "#uh", "#er", "#oh"],
+    },
+  ]}
+/>
+```
+
+Typing `[` shows the configured tags; `[no` filters to `[noise]`. Filtering is
+case-insensitive and matches from the beginning of each complete suggestion.
+Supply the exact values you want inserted, including brackets or prefixes.
+Lists can use any nonempty prefix (including `<` or several characters); the
+first matching configuration wins. Prefixes are recognized at the start of the
+word before the caret, after whitespace, or at the start of the input.
+
+Choose with the arrow keys and Enter/Tab, or click a row. Acceptance replaces
+the whole token around the caret with the complete value. A space is added when
+there isn't already whitespace or punctuation after it. Escape dismisses the list. Space and punctuation are ordinary
+typing keys in this mode, and blur never automatically accepts a token.
+
+Local lists bypass `fetchSuggestions`, `validateSuggestions`, `debounceMs`, and
+`minWordLength`. They obey `enabled`, the mobile visibility settings, and
+`maxOptions`; no typed-word fallback or localStorage ranking is added. No
+matching options closes the popup without falling back to transliteration.
+Removing the prefix resumes normal transliteration. Selection callbacks and
+undo still work; timing callbacks apply only to transliteration requests.
+
+### Editing inside a word
+
+Moving the cursor closes and cancels the current suggestions. The next edit
+queries the whole word around the caret: `sart|hak` followed by `i` becomes
+`sarti|hak`, and suggestions are requested for `sartihak`. Accepting a result
+replaces that whole word, preserving surrounding text and punctuation. The
+caret moves to the end of the inserted suggestion; undo restores the edited
+word and its original caret position. Selecting a text range dismisses the
+popup so suggestions cannot overwrite a stale word.
+
+Local lists filter by the prefix before the caret, but replace the complete
+token, including a closing bracket already present after the caret.
+
+### Remembering selections
+
+The last selected suggestion for each exact typed word and language moves to
+the top the next time that word is queried, if it is still in the validated
+results. Mouse, keyboard, and blur selections are remembered in this site's
+localStorage under `react-transliterate:selections`, keeping the 100 most
+recent word/language pairs. If storage is unavailable, typing still works
+without remembering selections. Set `rememberSelections={false}` to disable
+both reading and writing history. Clear all remembered choices with:
+
+```js
+import { clearSuggestionHistory } from "@sarthak1407/react-transliterate";
+
+clearSuggestionHistory();
+```
+
+By default the box shows up to seven choices, including the typed word. While
+a new request is pending, the previous list stays visible; selection is
+disabled until the current results arrive so an earlier spelling cannot be
+inserted. The box anchors to the start of the word and retains its width
+until closed. Height follows the current results so shorter lists leave no
+empty rows. Space and
+other trigger keys behave normally while loading.
+
+The dropdown uses a white surface, a soft gray border, rounded inset rows, and a
+purple highlight to match the transcription editor. It inherits the app's font;
+the existing styling props can override its appearance.
+
+The first row stays highlighted while typing unless you choose a row with the
+arrow keys or mouse. That choice stays highlighted if it survives a results refresh.
+After a suggestion is accepted, `Ctrl+Z` / `Cmd+Z` restores the original text
+and selection. Further edits return undo handling to the browser. Requests
+and suggestion acceptance pause during IME composition; normal typing and
+composition callbacks still reach the parent component.
+
+The popup shifts inside the viewport, flips above the word when there is
+more room there, and scrolls if it cannot fit on either side. A small
+"Updating suggestions…" notice appears only after a 300 ms wait. The editor
+keeps keyboard focus while listbox options expose the active choice to
+screen readers. Single-line inputs use combobox semantics; textareas retain
+their multiline textbox semantics. Pass a label or `aria-label` for your
+input, including when supplying `renderComponent`.
+
+### Caching and request diagnostics
+
+The default Google source caches up to 100 successful, nonempty lookups in
+memory for five minutes, separated by word, language, and candidate count.
+Repeated words and backspacing can reuse these raw results. Validation runs
+again every time, and remembered choices reorder only the validated list.
+Failures and empty results are not cached. Custom `fetchSuggestions` sources
+are not cached because their results may depend on the full sentence.
+
+Two optional callbacks expose accepted choices and request durations:
+
+```jsx
+<ReactTransliterate
+  value={text}
+  onChangeText={setText}
+  rememberSelections={true}
+  onSuggestionSelect={({ word, suggestion, lang, value, insertText, source }) => {
+    // source is "keyboard", "mouse", or "blur".
+    console.log({ word, suggestion, lang, value, insertText, source });
+  }}
+  onSuggestionsTiming={({ word, lang, fetchMs, validationMs, totalMs, cached, status }) => {
+    console.log({ word, lang, fetchMs, validationMs, totalMs, cached, status });
+  }}
+/>
+```
+
+Durations are in milliseconds. `totalMs` includes the debounce wait; `cached`
+identifies Google cache hits, and `status` is `success`, `error`, or `aborted`.
+Timing is reported when a started request settles, including a canceled source
+that resolves late. A debounce canceled before any request starts has no
+timing event. The exported types are `SuggestionSelection` and
+`SuggestionsTiming`. These callbacks run locally; the library sends no
+diagnostic events to a telemetry service.
+
 ### Styling
 
 The suggestion box ships with its own styles, injected automatically. To
@@ -553,12 +688,14 @@ For a full example, take a look at the `example` folder
 | enabled                          |           | true                                                                          | Control whether suggestions should be shown                                                                                          |
 | renderComponent                  |           | `(props) => <input {...props} />`                                             | Component to render. You can pass components from your component library as this prop                                                |
 | lang                             |           | hi                                                                            | Language you want to transliterate. See the following section for language codes                                                     |
-| maxOptions                       |           | 5                                                                             | Maximum number of suggestions to show in helper                                                                                      |
+| maxOptions                       |           | 7                                                                             | Maximum number of suggestions to show in helper, including the typed word when offered                                                |
 | offsetY                          |           | 0                                                                             | Extra space between the top of the helper and bottom of the caret                                                                    |
 | offsetX                          |           | 0                                                                             | Extra space between the caret and left of the helper                                                                                 |
 | containerClassName               |           | empty string                                                                  | Classname passed to the container of the component                                                                                   |
 | containerStyles                  |           | {}                                                                            | CSS styles object passed to the container                                                                                            |
 | activeItemStyles                 |           | {}                                                                            | CSS styles object passed to the active item `<li>` tag                                                                               |
+| highlightColor                   |           | purple (`#5454c7`)                                                             | Selected row background; overridden by `activeItemStyles.backgroundColor`                                                           |
+| suggestionTriggers               |           | []                                                                            | Local lists of `{ trigger, suggestions }`; suggestions are complete insertion values                                                 |
 | hideSuggestionBoxOnMobileDevices |           | `false`                                                                       | Should the suggestions be visible on mobile devices since keyboards like Gboard and Swiftkey support typing in multiple languages    |
 | hideSuggestionBoxBreakpoint      |           | 450                                                                           | type: `number`. To be used when `hideSuggestionBoxOnMobileDevices` is true. Suggestion box will not be shown below this device width |
 | triggerKeys                      |           | `KEY_SPACE, KEY_ENTER, KEY_TAB, KEY_FULL_STOP` and `PUNCTUATION_TRIGGER_KEYS` | Keys which when pressed, input the current selection to the textbox. Each entry is a key or `{ key, insertText }`                    |
@@ -575,6 +712,9 @@ For a full example, take a look at the `example` folder
 | debounceMs                       |           | 0                                                                             | Wait this long after the last keystroke before asking for suggestions                                                                |
 | minWordLength                    |           | 1                                                                             | Do not ask for suggestions until the word is at least this long                                                                      |
 | onSuggestionsError               |           |                                                                               | Called when a source or validator rejects. Aborted requests are not reported                                                         |
+| rememberSelections               |           | `true`                                                                        | Read and write the last choice per word and language in localStorage                                                                 |
+| onSuggestionSelect               |           |                                                                               | Called after accepting a suggestion with its word, language, resulting value, inserted text, and input source                        |
+| onSuggestionsTiming              |           |                                                                               | Reports fetch, validation, and total durations, Google cache hits, and request status                                                 |
 
 ### Supported Languages
 
