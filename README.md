@@ -333,6 +333,19 @@ and selection. Further edits return undo handling to the browser. Requests
 and suggestion acceptance pause during IME composition; normal typing and
 composition callbacks still reach the parent component.
 
+Software keyboards (including Android keyboards that send `keyCode: 229`)
+can accept suggestions through native `beforeinput`, without a normal keydown.
+An exact trigger insertion on `input` provides a fallback when `beforeinput`
+is non-cancelable. Paste and autocorrection do not automatically accept a
+suggestion. During IME composition, the keyboard owns the text; suggestions
+resume after composition commits. Local lists keep space and punctuation as
+ordinary text input, and accept Enter or a tap.
+
+The popup uses `visualViewport` where available and responds to its resize and
+scroll events, keeping suggestions above the on-screen keyboard. These paths
+have automated event tests; real-device checks with Gboard and Samsung Keyboard
+are still needed.
+
 The popup shifts inside the viewport, flips above the word when there is
 more room there, and scrolls if it cannot fit on either side. A small
 "Updating suggestions…" notice appears only after a 300 ms wait. The editor

@@ -499,12 +499,19 @@ export const ReactTransliterate = ({
           offsetY,
       },
       listSizeRef.current,
-      { width: window.innerWidth, height: window.innerHeight },
+      {
+        width: window.visualViewport?.width ?? window.innerWidth,
+        height: window.visualViewport?.height ?? window.innerHeight,
+        left: window.visualViewport?.offsetLeft ?? 0,
+        top: window.visualViewport?.offsetTop ?? 0,
+      },
     );
     setLeft(position.left - origin.left);
     setTop(position.top - origin.top);
     if (listRef.current) {
-      listRef.current.style.minWidth = `${Math.min(listSizeRef.current.width, Math.max(0, window.innerWidth - 16))}px`;
+      const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+      listRef.current.style.minWidth = `${Math.min(listSizeRef.current.width, Math.max(0, viewportWidth - 16))}px`;
+      listRef.current.style.maxWidth = `${Math.max(0, Math.min(320, viewportWidth - 16))}px`;
       listRef.current.style.maxHeight = `${position.maxHeight}px`;
     }
   }, [offsetX, offsetY]);
@@ -583,8 +590,86 @@ export const ReactTransliterate = ({
     }
   };
 
+  const inputTrigger = (inputType: string, data: string | null) => {
+    const key = ["insertLineBreak", "insertParagraph"].includes(inputType)
+      ? "Enter"
+      : inputType === "insertText"
+        ? data
+        : null;
+    if (key === null || loadingRef.current || optionsRef.current.length === 0)
+      return;
+    return localTriggerRef.current !== null
+      ? key === "Enter"
+        ? { key }
+        : undefined
+      : triggerKeyMap.get(key);
+  };
+
+  // Some mobile keyboards send input events instead of usable keydowns.
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    const beforeInput = (event: InputEvent) => {
+      if (
+        event.defaultPrevented ||
+        !event.cancelable ||
+        event.isComposing ||
+        composingRef.current
+      )
+        return;
+      const trigger = inputTrigger(event.inputType, event.data);
+      const caret = getInputSelection(input);
+      const expected = queryCaretRef.current;
+      if (
+        !trigger ||
+        !expected ||
+        caret.start !== expected.start ||
+        caret.end !== expected.end
+      )
+        return;
+      event.preventDefault();
+      handleSelection(
+        selectionRef.current,
+        getInsertText(trigger, optionsRef.current[selectionRef.current]),
+        "keyboard",
+      );
+    };
+    input.addEventListener("beforeinput", beforeInput);
+    return () => input.removeEventListener("beforeinput", beforeInput);
+  });
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.currentTarget.value;
+    const native = e.nativeEvent as InputEvent;
+    const trigger = inputTrigger(native.inputType, native.data);
+    const expected = queryCaretRef.current;
+    const inserted = ["insertLineBreak", "insertParagraph"].includes(
+      native.inputType,
+    )
+      ? "\n"
+      : native.data;
+    if (
+      !composingRef.current &&
+      !native.isComposing &&
+      trigger &&
+      expected &&
+      expected.start === expected.end &&
+      inserted &&
+      value ===
+        valueRef.current.slice(0, expected.end) +
+          inserted +
+          valueRef.current.slice(expected.end) &&
+      getInputSelection(e.currentTarget).end === expected.end + inserted.length
+    ) {
+      // Non-cancelable beforeinput: accept only an exact single trigger insertion.
+      e.currentTarget.setSelectionRange(expected.start, expected.end);
+      handleSelection(
+        selectionRef.current,
+        getInsertText(trigger, optionsRef.current[selectionRef.current]),
+        "keyboard",
+      );
+      return;
+    }
     valueRef.current = value;
     undoRef.current = null;
     if (caretTimeoutRef.current !== null) clearTimeout(caretTimeoutRef.current);
@@ -810,7 +895,14 @@ export const ReactTransliterate = ({
 
   useEffect(() => {
     window.addEventListener("scroll", updatePosition, true);
-    return () => window.removeEventListener("scroll", updatePosition, true);
+    const viewport = window.visualViewport;
+    viewport?.addEventListener("resize", updatePosition);
+    viewport?.addEventListener("scroll", updatePosition);
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      viewport?.removeEventListener("resize", updatePosition);
+      viewport?.removeEventListener("scroll", updatePosition);
+    };
   }, [updatePosition]);
 
   useEffect(() => {
