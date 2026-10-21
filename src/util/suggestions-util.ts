@@ -11,6 +11,21 @@ type Config = {
 
 const cache = new Map<string, { suggestions: string[]; expiresAt: number }>();
 
+const ORIGIN = "https://inputtools.google.com";
+let warmed = false;
+
+// The first lookup pays for DNS and TLS. Opening the connection when the
+// component mounts moves that cost out of the first keystroke.
+export const warmUpTransliteration = () => {
+  if (warmed || typeof document === "undefined") return;
+  warmed = true;
+  const link = document.createElement("link");
+  link.rel = "preconnect";
+  link.href = ORIGIN;
+  link.crossOrigin = "anonymous";
+  document.head.appendChild(link);
+};
+
 export const getTransliterateSuggestions = async (
   word: string,
   {
@@ -36,7 +51,7 @@ export const getTransliterateSuggestions = async (
   }
   cache.delete(key);
 
-  const url = `https://inputtools.google.com/request?text=${encodeURIComponent(word)}&itc=${lang}-t-i0-und&num=${numOptions}&cp=0&cs=1&ie=utf-8&oe=utf-8&app=demopage`;
+  const url = `${ORIGIN}/request?text=${encodeURIComponent(word)}&itc=${lang}-t-i0-und&num=${numOptions}&cp=0&cs=1&ie=utf-8&oe=utf-8&app=demopage`;
   try {
     const res = await fetch(url, { signal });
     if (!res.ok)

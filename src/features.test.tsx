@@ -716,3 +716,27 @@ it("reports aborted requests without displaying their late results", async () =>
   );
   expect(screen.queryByRole("option", { name: "old" })).not.toBeInTheDocument();
 });
+
+it("caps a long local list at maxOptions and reveals the rest as the prefix narrows", () => {
+  const tags = Array.from({ length: 25 }, (_, i) => `[tag${i}]`);
+  render(
+    <Editor
+      maxOptions={5}
+      suggestionTriggers={[
+        { trigger: "[", suggestions: [...tags, "[zebra]", "[zulu]"] },
+      ]}
+    />,
+  );
+  type("[");
+  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(
+    tags.slice(0, 5),
+  );
+  type("[tag2");
+  expect(screen.getAllByRole("option")).toHaveLength(5);
+  expect(screen.getAllByRole("option")[0]).toHaveTextContent("[tag2]");
+  type("[z");
+  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual([
+    "[zebra]",
+    "[zulu]",
+  ]);
+});

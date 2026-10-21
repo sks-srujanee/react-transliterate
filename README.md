@@ -266,6 +266,8 @@ transliteration when the current word starts with a configured prefix:
 />
 ```
 
+Lists can be long: only the first `maxOptions` (default 7) rows are shown, and
+the rest appear as typing narrows the match, for example `[z` reaches `[zebra]`.
 Typing `[` shows the configured tags; `[no` filters to `[noise]`. Filtering is
 case-insensitive and matches from the beginning of each complete suggestion.
 Supply the exact values you want inserted, including brackets or prefixes.

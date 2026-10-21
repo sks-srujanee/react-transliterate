@@ -9,6 +9,9 @@ import {
 } from "react";
 import { getInputSelection, isTouchEnabled, isLatinText } from "./util";
 import getCaretCoordinates from "textarea-caret";
+import { getEditableCaretCoordinates } from "./util/editable-util";
+import { ContentEditable } from "./ContentEditable";
+import type { ContentEditableProps } from "./ContentEditable";
 import classes from "./styles.module.css";
 // the same stylesheet as a string, injected so that consumers do not have to
 // import `dist/index.css` themselves
@@ -25,7 +28,10 @@ import {
   getFullStopCharacter,
 } from "./constants/FullStopCharacters";
 import { TriggerKey, TriggerKeyConfig } from "./types/TriggerKey";
-import { getTransliterateSuggestions } from "./util/suggestions-util";
+import {
+  getTransliterateSuggestions,
+  warmUpTransliteration,
+} from "./util/suggestions-util";
 import { injectStyles } from "./util/style-util";
 import { FetchSuggestions, SuggestionsResult } from "./types/SuggestionSource";
 import { createAnalyzeSource } from "./sources/analyze-source";
@@ -485,7 +491,9 @@ export const ReactTransliterate = ({
     const input = inputRef.current;
     const container = containerRef.current;
     if (!input || !container || matchStartRef.current < 0) return;
-    const caret = getCaretCoordinates(input, matchStartRef.current);
+    const caret = input.isContentEditable
+      ? getEditableCaretCoordinates(input, matchStartRef.current)
+      : getCaretCoordinates(input, matchStartRef.current);
     const rect = input.getBoundingClientRect();
     const origin = container.getBoundingClientRect();
     const anchorTop = rect.top + caret.top - input.scrollTop;
@@ -684,7 +692,9 @@ export const ReactTransliterate = ({
   };
 
   const handleSelect = (event: React.SyntheticEvent<HTMLInputElement>) => {
-    const caret = getInputSelection(event.currentTarget);
+    // wrapper components such as Material UI attach `onSelect` to a root
+    // element, where `currentTarget` is not the editable element
+    const caret = getInputSelection(inputRef.current ?? event.currentTarget);
     const queryCaret = queryCaretRef.current;
     if (
       queryCaret &&
@@ -712,7 +722,7 @@ export const ReactTransliterate = ({
     event: React.CompositionEvent<HTMLInputElement>,
   ) => {
     composingRef.current = false;
-    const input = event.currentTarget;
+    const input = inputRef.current ?? event.currentTarget;
     valueRef.current = input.value;
     // A following change event uses the final value and cancels this fallback.
     compositionTimeoutRef.current = setTimeout(() => {
@@ -906,6 +916,10 @@ export const ReactTransliterate = ({
   }, [updatePosition]);
 
   useEffect(() => {
+    if (!fetchSuggestions) warmUpTransliteration();
+  }, [fetchSuggestions]);
+
+  useEffect(() => {
     window.addEventListener("resize", handleResize);
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -1039,8 +1053,10 @@ export type {
   SuggestionSelection,
   SuggestionsTiming,
   SuggestionTrigger,
+  ContentEditableProps,
 };
 export {
+  ContentEditable,
   TriggerKeys,
   PUNCTUATION_TRIGGER_KEYS,
   DEFAULT_TRIGGER_KEYS,
